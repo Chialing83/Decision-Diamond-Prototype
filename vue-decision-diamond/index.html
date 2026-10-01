@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" href="/favicon.ico" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>my-dex-prototype</title>
+</head>
+
+<body data-theme="maverick" data-color-scheme="light">
+  <script>
+    // Whisker Light is the only supported theme for now. Force-override
+    // any older value left in localStorage from when the theme switcher
+    // exposed Dark / System variants.
+    localStorage.setItem('dex-theme', 'maverick');
+    localStorage.setItem('dex-color-scheme', 'light');
+    document.body.dataset.theme = 'maverick';
+    document.body.dataset.colorScheme = 'light';
+  </script>
+  <div id="root"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
+</html>

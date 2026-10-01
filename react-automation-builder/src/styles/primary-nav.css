@@ -1,0 +1,273 @@
+/* ========================================================================
+   Primary Nav (text-label rail)
+   Class names mirror the Keap "dex" design system so future integration
+   with real design-system tokens is a drop-in replacement.
+   ======================================================================== */
+
+:root {
+  --dex-icon-size: 1.25rem;
+  --dex-icon-size-md: 1.5rem;
+  --primary-nav-width: 162px;
+}
+
+/* ── Outer rail ──────────────────────────────────────────────────── */
+.primary-nav {
+  position: static;                 /* expand button positions off Sidebar wrapper */
+  width: var(--primary-nav-width);
+  height: 100vh;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 1rem 0 0.5rem;
+  background: var(--color-sidebar-bg);
+  color: var(--color-sidebar-text);
+  z-index: 20;
+}
+/* Inner structural wrapper groups expand button, logo, search & links */
+.primary-nav > div:first-child {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* ── tw: utilities used by the expand button ─────────────────────── */
+.tw\:absolute  { position: absolute; }
+.tw\:top-050   { top: 0.75rem; }
+.tw\:right-050 { right: 0.75rem; }
+.tw\:relative  { position: relative; }
+
+/* ── dex utility helpers ─────────────────────────────────────────── */
+.dex-inline  { display: inline-flex; align-items: center; }
+.dex-inline[data-align-x="left"]  { justify-content: flex-start; }
+.dex-inline[data-align-y="top"]   { align-items: flex-start; }
+.dex-inline[data-wrap="true"]     { flex-wrap: wrap; }
+.dex-gap-0   { gap: 0; }
+.dex-pl-075  { padding-left: 0.75rem; }
+.dex-py-300  { padding-top: 0.75rem; padding-bottom: 0.75rem; width: 100%; margin-top: auto; }
+.dex-stack   { display: flex; flex-direction: column; }
+.dex-stack[data-align-x="center"] { align-items: center; }
+.dex-gap-300 { gap: 0.75rem; }
+.dex-text-headline-5 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: currentColor;
+}
+
+/* ── Icon button (expand / help) ─────────────────────────────────── */
+.dex-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: transparent;
+  color: #fff;
+  padding: 0;
+  transition: background 150ms ease, color 150ms ease;
+  width: 40px;
+  height: 40px;
+  z-index: 30;                      /* stay above secondary panel */
+}
+.dex-icon-button:hover  { background: var(--color-sidebar-hover); color: #fff; }
+.dex-icon-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.dex-icon-button[data-size="dense"]   { width: 28px; height: 28px; }
+.dex-icon-button[data-size="default"] { width: 40px; height: 40px; }
+.dex-icon-button[data-variant="transparent"] { background: transparent; }
+
+/* ── Logo container ──────────────────────────────────────────────── */
+.nav-logo-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  margin-bottom: 0.25rem;
+}
+.nav-logo-container > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: inherit;
+}
+.dex-keap-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-brand-orange);
+}
+.dex-keap-logo path { fill: currentColor; }
+
+/* ── Search (icon-only, centered) ────────────────────────────────── */
+.side-nav-search-condensed {
+  width: 48px !important;
+  min-height: 44px !important;
+  margin: 0 auto 1rem !important;
+  padding: 10px !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  color: #fff;
+}
+
+/* ── Nav menu items (text-label, left aligned) ───────────────────── */
+.side-nav-menu-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border: none;
+  background: transparent;
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.side-nav-menu-item-condensed {
+  flex-direction: row;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 44px;
+  margin: 1px 0;
+  padding: 10px 20px;
+  border-radius: 0;
+  gap: 0;
+  opacity: 0.85;
+}
+.side-nav-menu-item-condensed:hover {
+  background: var(--color-sidebar-hover);
+  opacity: 1;
+}
+.side-nav-menu-item-condensed:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+}
+
+.side-nav-menu-item-condensed .dex-pl-075 {
+  padding-left: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.side-nav-menu-item-condensed .dex-pl-075 .dex-text-headline-5 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+/* ── Active state — orange left indicator + bold label ───────────── */
+.side-nav-menu-item-active {
+  background: transparent;
+  opacity: 1;
+}
+.side-nav-menu-item-condensed.side-nav-menu-item-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 26px;
+  background: var(--color-brand-orange);
+  border-radius: 0 2px 2px 0;
+}
+.side-nav-menu-item-condensed.side-nav-menu-item-active .dex-text-headline-5 {
+  font-weight: 700;
+}
+
+/* ── Status badge (danger/high) ──────────────────────────────────── */
+.dex-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 3px;
+  background: var(--color-danger);
+  color: #fff;
+}
+.dex-status[data-variant="danger"] { background: var(--color-danger); }
+.dex-status[data-variant="danger"][data-emphasis="high"] { background: var(--color-danger); }
+.dex-status .dex-text-headline-5 {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+/* Comms badge sits inline at the end of the label row */
+.side-nav-menu-item-condensed > .dex-status {
+  position: static;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Avatar + notification count ─────────────────────────────────── */
+.avatar-button {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 9999px;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.avatar-button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+.dex-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--color-sidebar-active);
+}
+.dex-avatar[data-variant="user"] { background: #3a4957; }
+.avatar-button-notification-count {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  pointer-events: none;
+}
+
+/* ── Account dropdown ────────────────────────────────────────────── */
+.account-dropdown {
+  position: absolute;
+  bottom: 0;
+  left: 52px;
+  min-width: 200px;
+  background: #fff;
+  color: var(--color-gray-900);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.16), 0 2px 8px rgba(0,0,0,0.10);
+  padding: 6px 0;
+  z-index: 200;
+  border: 1px solid var(--color-gray-200);
+}
+.account-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 9px 16px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font-size: 13px;
+  color: var(--color-gray-900);
+  cursor: pointer;
+}
+.account-dropdown-item:hover { background: var(--color-page-bg); }

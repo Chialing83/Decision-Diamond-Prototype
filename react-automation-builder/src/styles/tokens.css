@@ -1,0 +1,48 @@
+:root {
+  /* Primary / Brand */
+  --color-primary: #006ceb;
+  --color-primary-hover: #0f5cd8;
+  --color-primary-active: #1a3ab9;
+  --color-primary-light: #d6f0ff;
+  --color-brand-orange: #ff5000;
+  --color-danger: #e02500;
+  --color-danger-light: #fde7e6;
+
+  /* Grays */
+  --color-gray-050: #fafafa;
+  --color-gray-100: #f0f0f0;
+  --color-gray-200: #e7e7e7;
+  --color-gray-300: #dddddd;
+  --color-gray-400: #cccccc;
+  --color-gray-500: #c5c5c5;
+  --color-gray-600: #b5b5b5;
+  --color-gray-700: #979797;
+  --color-gray-800: #656565;
+  --color-gray-900: #2c2c2c;
+
+  /* Sidebar */
+  --color-sidebar-bg: #151b22;
+  --color-sidebar-active: #2e3d4c;
+  --color-sidebar-hover: rgba(255,255,255,0.059);
+  --color-sidebar-text: #ffffff;
+  --color-sidebar-text-muted: rgba(255,255,255,0.623);
+
+  /* Status */
+  --color-success: #1c831e;
+  --color-success-bg: #e8f6e8;
+  --color-draft: #343434;
+  --color-disabled: #656565;
+  --color-warning: #efbb06;
+
+  /* Surfaces */
+  --color-paper: #ffffff;
+  --color-background: #fafafa;
+  --color-page-bg: #f4f4f7;
+  --color-divider: rgba(0,0,0,0.09);
+
+  /* Ink */
+  --color-ink-900: rgba(0,0,0,0.82);
+  --color-ink-800: rgba(0,0,0,0.624);
+  --color-ink-700: rgba(0,0,0,0.4);
+  --color-ink-600: rgba(0,0,0,0.29);
+}

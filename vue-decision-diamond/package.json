@@ -1,0 +1,28 @@
+{
+  "name": "vue-decision-diamond",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tanstack/vue-table": "^8.21.3",
+    "@thryvlabs/dex-core": "^1.13.1",
+    "@thryvlabs/dex-vue": "^1.13.1",
+    "vee-validate": "^4.15.1",
+    "vue": "^3.5.8",
+    "vue-router": "^4.5.1",
+    "yup": "^1.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.6",
+    "@thryvlabs/dex-mcp": "^1.13.1",
+    "@vitejs/plugin-vue": "^5.2.0",
+    "tailwindcss": "^4.1.5",
+    "typescript": "~5.7.0",
+    "vite": "^6.3.0",
+    "vite-svg-loader": "^5.1.1",
+    "vue-tsc": "^2.2.0"
+  }
+}

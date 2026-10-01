@@ -1,0 +1,33 @@
+/* ========================================================================
+   Automation Builder — trigger/action list row hover affordance
+   Mirrors the Vue spec's `.draggable-cell` hover behavior.
+   ======================================================================== */
+
+.draggable-cell {
+  transition: background-color 150ms ease;
+  outline: none;
+}
+
+.draggable-cell .hover-icon {
+  --icon-color: #656565;
+  width: 1.5rem;
+  height: 1.5rem;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  margin-left: auto;          /* right-align inside the row */
+  color: var(--icon-color);
+  flex-shrink: 0;
+  pointer-events: none;       /* never intercept drag/click */
+}
+
+.draggable-cell .hover-icon path { fill: currentColor; }
+
+.draggable-cell:hover,
+.draggable-cell:focus-visible {
+  background-color: var(--ds-color-hover-bg, rgba(0, 0, 0, 0.04));
+}
+
+.draggable-cell:hover .hover-icon,
+.draggable-cell:focus-visible .hover-icon {
+  opacity: 1;
+}

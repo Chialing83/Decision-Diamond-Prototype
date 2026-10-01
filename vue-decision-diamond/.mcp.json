@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "dex-design-system": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@thryvlabs/dex-mcp"
+      ]
+    }
+  }
+}

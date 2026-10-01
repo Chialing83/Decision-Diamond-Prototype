@@ -1,0 +1,86 @@
+@import '@thryvlabs/dex-vue/style.css';
+@import 'tailwindcss';
+
+:root {
+  --header-height: 57px;
+  --nav-width: 250px;
+}
+
+html,
+body {
+  height: 100dvh;
+  overflow: hidden;
+  /* Stop the macOS trackpad two-finger horizontal swipe from triggering
+     browser back/forward navigation while inside the app — users
+     mid-edit shouldn't be yanked off a page by an accidental gesture. */
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: none;
+}
+
+body {
+  background-color: var(--dex-page-bgColor);
+  color: var(--dex-page-fgColor);
+}
+
+.app--fullscreen {
+  display: block !important;
+  grid-template-columns: none !important;
+  grid-template-rows: none !important;
+  grid-template-areas: none !important;
+}
+.app--fullscreen .main {
+  height: 100dvh;
+  grid-area: auto;
+}
+
+.app {
+  height: 100vh;
+  display: grid;
+  grid-template-columns: var(--nav-width) 1fr;
+  grid-template-rows: var(--header-height) calc(100dvh - var(--header-height));
+  grid-template-areas:
+    'header header'
+    'nav main';
+}
+
+.header {
+  grid-area: header;
+  padding: var(--dex-spacing-100) var(--dex-spacing-200);
+  border-bottom: 1px solid var(--dex-borderColor-alpha-subtle);
+  background-color: var(--dex-surface-flat-bgColor);
+  color: var(--dex-fgColor-highContrast);
+}
+
+.nav {
+  grid-area: nav;
+  border-right: 1px solid var(--dex-borderColor-alpha-subtle);
+  background-color: var(--dex-surface-flat-bgColor);
+  padding: var(--dex-spacing-100);
+}
+
+.main {
+  grid-area: main;
+  background-color: var(--dex-page-bgColor);
+  overflow-y: auto;
+}
+
+.nav-link a {
+  padding: var(--dex-spacing-100) var(--dex-spacing-200);
+  border-radius: var(--dex-borderRadius-050);
+  display: flex;
+  width: 100%;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.nav-link a.active {
+  background-color: var(--dex-bgColor-secondary-subtle);
+}
+
+.nav-link a:not(.active):hover,
+.nav-link a:not(.active):focus {
+  background-color: var(--dex-bgColor-transparent-hover);
+}
+
+.nav-link a:not(.active):active {
+  background-color: var(--dex-bgColor-transparent-active);
+}

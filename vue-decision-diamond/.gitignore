@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Vite
+.vite/
+
+# Logs and caches
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.DS_Store
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Test / coverage
+coverage/
+
+# Editor
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Sibling prototypes (not part of this POC)
+keap-crm/
+keap-prototype-x/
+
+# Claude local settings
+.claude/
+
