@@ -1213,8 +1213,7 @@ function chaoticImageSeed(): {
     { id: 'd2', type: 'decision', title: 'Decision Diamond', x: 1170, y: 1450, warning: true },
     { id: 'n8', type: 'action', title: 'Notify sales rep', name: 'create-a-task', x: 1680, y: 1340, accent: G.primary },
   ]
-  const nodes = base.map(deserializeNode)
-  const edges: BuilderEdge[] = [
+  const baseEdges: BuilderEdge[] = [
     { id: 'e1',  from: 'n1', to: 'd1' },
     { id: 'e2',  from: 'd1', to: 'n2' },
     { id: 'e3',  from: 'd1', to: 'n4' },
@@ -1227,9 +1226,36 @@ function chaoticImageSeed(): {
     { id: 'e9',  from: 'n9', to: 'd2' },
     { id: 'e10', from: 'd2', to: 'n8' },
   ]
-  const lockedPairs: LockedPair[] = [
+  const baseLockedPairs: LockedPair[] = [
     { hostId: 'n4', partnerId: 'n5', edgeId: 'e6' },
   ]
+
+  // Doubled seed — a second structurally-identical copy of the whole
+  // flow, shifted +MIRROR_DX px to the right. Both halves share
+  // identical sequence topology (same titles, same edges, same locked
+  // pair) so they look 100% the same relative to each other. Node ids
+  // in the mirror are prefixed `b_` to stay unique.
+  const MIRROR_DX = 1800
+  const mirrorId = (id: string) => `b_${id}`
+  const mirror: PersistedNode[] = base.map((n) => ({
+    ...n,
+    id: mirrorId(n.id),
+    x: n.x + MIRROR_DX,
+  }))
+  const mirrorEdges: BuilderEdge[] = baseEdges.map((e) => ({
+    id: `b_${e.id}`,
+    from: mirrorId(e.from),
+    to: mirrorId(e.to),
+  }))
+  const mirrorLockedPairs: LockedPair[] = baseLockedPairs.map((p) => ({
+    hostId: mirrorId(p.hostId),
+    partnerId: mirrorId(p.partnerId),
+    edgeId: `b_${p.edgeId}`,
+  }))
+
+  const nodes = [...base, ...mirror].map(deserializeNode)
+  const edges: BuilderEdge[] = [...baseEdges, ...mirrorEdges]
+  const lockedPairs: LockedPair[] = [...baseLockedPairs, ...mirrorLockedPairs]
   return { nodes, edges, lockedPairs }
 }
 
