@@ -3,9 +3,21 @@ export interface Automation {
   name: string;
   status: 'draft' | 'active' | 'disabled';
   updatedAt: string;
+  /** Opens this URL instead of the builder (links out to another prototype). */
+  externalUrl?: string;
 }
 
+export const TIDY_UP_PROTOTYPE_URL =
+  'https://chialing83.github.io/decision-diamond-prd/tidy-up/';
+
 export const automations: Automation[] = [
+  {
+    id: 'tidy-up-demo',
+    name: 'Messy flow_Tidy up tool',
+    status: 'active',
+    updatedAt: '2026-10-01T23:17:00.000Z',
+    externalUrl: TIDY_UP_PROTOTYPE_URL,
+  },
   {
     id: '1',
     name: 'Follow up email to new leads',

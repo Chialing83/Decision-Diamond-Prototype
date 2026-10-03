@@ -330,6 +330,14 @@ defineOptions({
 const route = useRoute();
 const router = useRouter();
 
+function openAutomation(automation: Automation) {
+  if (automation.externalUrl) {
+    window.location.href = automation.externalUrl;
+    return;
+  }
+  router.push(`/automations/builder/${automation.id}`);
+}
+
 const isLoading = ref(true);
 
 let loadingTimer: ReturnType<typeof setTimeout>;
@@ -421,11 +429,13 @@ const columns = [
       h(
         'a',
         {
-          href: `/automations/builder/${info.row.original.id}`,
+          href:
+            info.row.original.externalUrl ??
+            `/automations/builder/${info.row.original.id}`,
           style: 'color: #006ceb; text-decoration: none; cursor: pointer;',
           onClick: (e: MouseEvent) => {
             e.preventDefault();
-            router.push(`/automations/builder/${info.row.original.id}`);
+            openAutomation(info.row.original);
           },
         },
         info.getValue(),
@@ -456,7 +466,7 @@ const columns = [
               leadingIcon: 'edit',
               title: 'Edit',
               onSelect: () => {
-                router.push(`/automations/builder/${row.original.id}`);
+                openAutomation(row.original);
               },
             },
             {
