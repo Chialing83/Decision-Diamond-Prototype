@@ -32,6 +32,8 @@ Deep-link routes:
 Build-time env flags for producing isolated single-canvas deploys:
 - `VITE_FORCED_AUTOMATION_ID=adv1` or `adv2` — locks every route to that canvas
 - `VITE_BASE_PATH=/some-subpath/` — subpath prefix for GitHub Pages hosting
+- `VITE_CLOSE_URL=/some/list/` — where the canvas close (X) button goes in a
+  single-canvas build, e.g. back to the Vue prototype's automation list
 
 Example — build the Tidy-up-only isolated bundle used by the demo site:
 ```bash

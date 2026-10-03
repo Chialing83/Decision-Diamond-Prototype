@@ -11004,7 +11004,18 @@ export default function AutomationBuilder() {
     announce(`Added "${cell.defaultName}"`)
   }
 
-  const handleClose = () => navigate('/my-automations/list/advanced')
+  // Single-canvas builds have no list to return to, so the host page can
+  // supply one at build time (`VITE_CLOSE_URL=/some/list/`) — e.g. the
+  // Vue Decision Diamond prototype that links here.
+  const CLOSE_URL: string | undefined =
+    (import.meta as any).env?.VITE_CLOSE_URL || undefined
+  const handleClose = () => {
+    if (CLOSE_URL) {
+      window.location.href = CLOSE_URL
+      return
+    }
+    navigate('/my-automations/list/advanced')
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#fff', overflow: 'hidden' }}>
