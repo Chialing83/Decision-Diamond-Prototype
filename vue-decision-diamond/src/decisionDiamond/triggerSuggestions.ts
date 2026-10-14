@@ -164,6 +164,54 @@ const PRODUCT_SUGGESTIONS: TriggerSuggestion[] = [
       },
     ],
   },
+  {
+    id: 'productValueThreshold',
+    title: 'Order value $4,999 and above vs below',
+    category: 'Order value',
+    description:
+      'Split orders by purchase value — route $4,999 and above into a high-touch CRM track (account owner outreach, concierge onboarding, review flagging) while sub-$4,999 orders ride the standard self-serve flow.',
+    message: {
+      title: 'Order value $4,999 and above vs below',
+      lead: 'Separate high-ticket orders ($4,999+) from everyday purchases so the sales team can personally shepherd big-ticket customers through onboarding while standard orders stay fully automated.',
+      whenTitle: 'When a product is purchased',
+      whenBody:
+        'Fires on every purchase, then evaluates the order value to decide whether this is a VIP-track customer or a standard-track customer.',
+      thenSteps: [
+        {
+          title: 'High-value branch ($4,999 and above)',
+          decision:
+            'If Order value is $4,999 or more → Sequence 1.',
+          suggestedNext:
+            'Flag the deal as High Value in the CRM, assign the account owner a same-day welcome call task, send a concierge-onboarding email, and start a 30-day check-in cadence.',
+        },
+        {
+          title: 'Standard branch (below $4,999)',
+          decision:
+            'If Order value is less than $4,999 → Sequence 2.',
+          suggestedNext:
+            'Send the standard receipt + fulfillment hand-off, enroll the contact in the self-serve onboarding sequence, and cross-sell on day 14.',
+        },
+      ],
+    },
+    rules: [
+      {
+        sequenceIndex: 0,
+        field: 'product.value',
+        // `exceeds 4998` = strictly > $4,998 = $4,999 and above
+        // (prototype's numeric operator set has no "exceedsOrEquals";
+        // this gives the exact "$4,999 and beyond" semantics the
+        // suggestion promises without introducing a new operator).
+        operator: 'exceeds',
+        values: ['4998'],
+      },
+      {
+        sequenceIndex: 1,
+        field: 'product.value',
+        operator: 'lessThan',
+        values: ['4999'],
+      },
+    ],
+  },
 ];
 
 const PRODUCT_SMART_PILLS: TriggerSmartPill[] = [
@@ -184,6 +232,12 @@ const PRODUCT_SMART_PILLS: TriggerSmartPill[] = [
     operator: 'equals',
     values: ['Adjustment'],
     label: 'Payment type equals Adjustment',
+  },
+  {
+    field: 'product.value',
+    operator: 'exceeds',
+    values: ['4998'],
+    label: 'Order value is $4,999 or more',
   },
 ];
 

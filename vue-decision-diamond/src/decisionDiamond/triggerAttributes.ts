@@ -72,6 +72,15 @@ export const TRIGGER_FIELDS: Record<TriggerSlug, TriggerField[]> = {
         'Any payment type',
       ],
     },
+    // Order value — used by the "Value evaluation" suggestion to route
+    // high-ticket orders ($4,999 and above) into a premium track and
+    // lower-ticket orders into the standard flow.
+    {
+      id: 'product.value',
+      label: 'Order value',
+      inputType: 'number',
+      unit: 'currency',
+    },
   ],
 
   // §4.2 — Quote status
