@@ -1020,8 +1020,11 @@ function placeholderFor(id: string, qualifier?: 'min' | 'max'): string {
 // AI assistant state
 // ===================================================================
 
-// Default to off in empty state — matches the "not yet configured" surface.
-const aiOpen = ref(false);
+// Default to ON when the Decision Diamond config modal first opens so
+// users see the starter suggestions + chat composer immediately
+// instead of a blank rule editor. User can still toggle it off via
+// the header switch.
+const aiOpen = ref(true);
 
 /** Test modal open state — drives the dialog that lets users probe
  *  their saved diamond logic with sample inputs (see TestDiamondModal). */
