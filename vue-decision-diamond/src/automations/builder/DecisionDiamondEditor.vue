@@ -14,7 +14,7 @@
           ref="closeButtonEl"
           name="x"
           label="Close decision diamond editor"
-          @click="$emit('close')"
+          @click="openCloseConfirmModal"
         />
         <DexText
           id="dd-editor-title"
@@ -875,6 +875,66 @@
       @close="testModalOpen = false"
     />
 
+    <!-- Confirm-close modal — fires when the user clicks the ✕ in
+         the editor header. Reminds them that any in-editor work only
+         reaches the canvas after Apply, so dismissing here loses
+         unsaved changes. -->
+    <div
+      v-if="closeConfirmModalOpen"
+      class="dd-newchat-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dd-closeconfirm-title"
+      @click.self="closeConfirmModalOpen = false"
+    >
+      <div class="dd-newchat">
+        <header class="dd-newchat__header">
+          <DexText
+            id="dd-closeconfirm-title"
+            variant="heading-3"
+            as="h3"
+          >
+            Close without applying?
+          </DexText>
+          <button
+            type="button"
+            class="dd-newchat__close"
+            aria-label="Keep editing"
+            @click="closeConfirmModalOpen = false"
+          >
+            ×
+          </button>
+        </header>
+        <div class="dd-newchat__body">
+          <DexText variant="body-1">
+            You have changes in the editor that haven't been saved to
+            the canvas yet. Click <strong>Apply</strong> to keep them,
+            or close without applying to discard them.
+          </DexText>
+        </div>
+        <footer class="dd-newchat__footer">
+          <DexButton
+            variant="outline"
+            @click="closeConfirmModalOpen = false"
+          >
+            Keep editing
+          </DexButton>
+          <DexButton
+            variant="outline"
+            @click="discardAndClose"
+          >
+            Close without applying
+          </DexButton>
+          <DexButton
+            variant="solid"
+            @click="applyAndClose"
+          >
+            Apply and close
+          </DexButton>
+        </footer>
+      </div>
+    </div>
+
     <!-- New-chat modal — confirms clearing the current conversation
          AND rules. Changes to rules stay in the editor until the
          user clicks Apply, which is what pushes them to the canvas. -->
@@ -1302,6 +1362,30 @@ function openNewChatModal() {
   // No point prompting when the chat is already empty — just no-op.
   if (transcript.value.length === 0) return;
   newChatModalOpen.value = true;
+}
+
+/** Confirm-close modal — fires when the user clicks the ✕ in the
+ *  header. Reminds them that nothing has been written to the canvas
+ *  until they hit Apply, so if they discard here any in-editor work
+ *  is lost. User can either keep editing (dismiss the modal) or
+ *  discard and close (emits 'close' as the original ✕ did). */
+const closeConfirmModalOpen = ref(false);
+
+function openCloseConfirmModal() {
+  closeConfirmModalOpen.value = true;
+}
+
+function discardAndClose() {
+  closeConfirmModalOpen.value = false;
+  emit('close');
+}
+
+function applyAndClose() {
+  closeConfirmModalOpen.value = false;
+  // Same path as the header Apply button — re-shatters on canvas and
+  // the parent closes the editor after sync. See AutomationBuilder's
+  // onEditorSave.
+  emit('save');
 }
 
 /** Clear both the chat transcript and the rules in the editor. The
