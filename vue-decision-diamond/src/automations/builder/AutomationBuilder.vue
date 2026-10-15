@@ -1757,7 +1757,24 @@ function onEditorSave() {
   });
 
   // Layout: stack the new diamonds vertically where the original sat.
-  const verticalSpacing = DIAMOND_H + 32;
+  // Spacing is derived from the LONGEST sibling's rule-summary label
+  // so no label spills into the next diamond below. The old constant
+  // (DIAMOND_H + 32) didn't leave room when a label wrapped to two
+  // lines (e.g. 'Quote status equals Accepted'), which produced the
+  // visual overlap the user reported.
+  const APPROX_CHAR_PX = 7.5; // ~ Inter 14px/600 average glyph width
+  const LABEL_LINE_PX = 18; // line-height 1.3 * 14px
+  const LABEL_WRAP_PX = 140; // typical canvas-label wrap target
+  const LABEL_TOP_GAP = 8; // gap between icon bottom and label top
+  const INTER_LABEL_PAD = 20; // gap between one label's bottom and next icon
+  const siblingLabels = cfg.groups.map((g, i) => summarizeGroupRules(g, i));
+  const charsPerLine = Math.max(1, Math.floor(LABEL_WRAP_PX / APPROX_CHAR_PX));
+  const maxLabelHeight = siblingLabels.reduce((acc, text) => {
+    const lines = Math.max(1, Math.ceil((text || '').length / charsPerLine));
+    const h = LABEL_TOP_GAP + lines * LABEL_LINE_PX;
+    return h > acc ? h : acc;
+  }, 0);
+  const verticalSpacing = DIAMOND_H + maxLabelHeight + INTER_LABEL_PAD;
   const stackHeight = (cfg.groups.length - 1) * verticalSpacing;
   const topY = original.y - stackHeight / 2;
 

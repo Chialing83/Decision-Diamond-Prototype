@@ -6932,19 +6932,24 @@ onBeforeUnmount(() => {
   max-width: 100%;
   border: 1px solid var(--dex-borderColor-default, #d1d5db);
   border-radius: 6px;
-  background: #fff;
-  padding: 14px 16px 10px;
+  background: transparent;
+  padding: 10px 16px;
   margin-top: 8px;
 }
 .dd-default__select:focus-within {
   border-color: var(--dex-color-blue-700, #006ceb);
 }
+/* The description label sits INSIDE the box at the top (block flow),
+ * not floated over the border. Transparent background so it inherits
+ * whatever the editor pane is painted with instead of the stale #fff
+ * overlay-notch trick — avoids a stray border line crossing through
+ * the label text when the container itself is transparent. */
 .dd-default__select-label {
-  position: absolute;
-  top: -8px;
-  left: 12px;
-  padding: 0 6px;
-  background: #fff;
+  position: static;
+  display: block;
+  padding: 0;
+  background: transparent;
+  margin-bottom: 4px;
   font-size: 12px;
   color: var(--dex-fgColor-muted, #6b7280);
   line-height: 1;
