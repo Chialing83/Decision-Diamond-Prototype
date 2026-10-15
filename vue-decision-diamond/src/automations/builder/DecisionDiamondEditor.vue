@@ -416,31 +416,9 @@
         <!-- ===== Right: rule cards + footer ===== -->
         <main
           class="dd-rules"
-          :class="{
-            'dd-rules--centered': !aiOpen,
-            'dd-rules--applying': isApplyingSuggestion,
-          }"
+          :class="{ 'dd-rules--centered': !aiOpen }"
           aria-label="Sequence rules"
         >
-          <!-- Loading overlay: appears while a template / AI boost edit is
-               being applied to the rule set. Without this the editor
-               looked stale during the thinking+composing phases and
-               users wondered if their click registered. Covers the
-               cards (not the footer) with a dim + centered spinner. -->
-          <div
-            v-if="isApplyingSuggestion"
-            class="dd-rules__apply-overlay"
-            role="status"
-            aria-live="polite"
-          >
-            <div class="dd-rules__apply-overlay-card">
-              <span class="dd-rules__apply-spinner" aria-hidden="true" />
-              <DexText variant="body-2" as="span">
-                Applying rules…
-              </DexText>
-            </div>
-          </div>
-
           <template
             v-for="(group, gi) in config.groups"
             :key="group.id"
@@ -817,6 +795,20 @@
                 </span>
               </div>
             </div>
+
+            <!-- Loading bar on the bottom border of this sequence card
+                 while an AI-boost command is being applied TO IT. Only
+                 the targeted sequence(s) show the bar — unaffected
+                 sequences stay fully interactive. The bar is an
+                 indeterminate progress animation that clears as soon
+                 as the config commit lands. -->
+            <div
+              v-if="applyingGroupIndices.has(gi)"
+              class="dd-card__loading-bar"
+              role="status"
+              aria-live="polite"
+              :aria-label="`Applying rules to Sequence ${gi + 1}`"
+            />
           </section>
 
             <!-- Drop indicator below the last card (only when target is the last) -->
@@ -1065,13 +1057,29 @@ const rootEl = ref<HTMLElement | null>(null);
 const closeButtonEl = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 const isThinking = ref(false);
 const isComposing = ref(false); // transition phase between thinking + posting
-/** True while a suggestion/AI-boost edit is mid-flight — covers both the
- *  "thinking" and "composing" phases. Drives the loading overlay on the
- *  rules pane so the user sees an interaction cue (instead of a stale
- *  editor) between click and rule-list update. */
-const isApplyingSuggestion = computed(
-  () => isThinking.value || isComposing.value,
-);
+/** Group indices currently receiving an AI-boost-driven mutation. Each
+ *  index in the set lights up its sequence card's bottom-border loading
+ *  bar so the user sees exactly which card(s) are being updated instead
+ *  of a stale editor. Populated at the start of applySuggestion (and
+ *  cleared when the config commit lands); other targeted paths can
+ *  reuse markGroupsApplying / clearGroupApplying the same way. */
+const applyingGroupIndices = ref<Set<number>>(new Set());
+
+function markGroupsApplying(indices: number[]) {
+  if (indices.length === 0) return;
+  const next = new Set(applyingGroupIndices.value);
+  for (const i of indices) next.add(i);
+  applyingGroupIndices.value = next;
+}
+function clearGroupApplying(indices?: number[]) {
+  if (!indices || indices.length === 0) {
+    applyingGroupIndices.value = new Set();
+    return;
+  }
+  const next = new Set(applyingGroupIndices.value);
+  for (const i of indices) next.delete(i);
+  applyingGroupIndices.value = next;
+}
 const previouslyFocused = ref<HTMLElement | null>(null);
 
 // ===================================================================
@@ -1687,6 +1695,15 @@ function applySuggestion(
   isInternalMutation.value = true;
   ensureGroups(requiredGroups);
 
+  // Light up the loading bar on the exact sequence cards this
+  // suggestion is going to touch. The bar lives for the full
+  // thinking + composing window (~1.4s total) and clears the moment
+  // the committed config lands below.
+  const targetSequenceIndices = Array.from(
+    new Set(s.rules.map((r) => r.sequenceIndex)),
+  );
+  markGroupsApplying(targetSequenceIndices);
+
   // Phase 1 — "thinking": spinning diamond. Jittered duration so two
   // back-to-back applies don't feel identical.
   isThinking.value = true;
@@ -1772,6 +1789,9 @@ function applySuggestion(
         },
       ];
       isComposing.value = false;
+      // The commit has landed — clear the loading bars so the new rule
+      // blocks are visible without any lingering overlay.
+      clearGroupApplying(targetSequenceIndices);
       scrollTranscriptToBottom();
       window.setTimeout(() => {
         isInternalMutation.value = false;
@@ -6260,64 +6280,45 @@ onBeforeUnmount(() => {
   }
 }
 
-/* ---------- "Applying rules…" loading overlay ----------
- * Painted over the rules pane while a suggestion / AI boost edit is
- * mid-apply (isThinking || isComposing). Semi-transparent dim lets the
- * underlying cards show through so the user can see the preview flip
- * as it lands, while a centered pill with a spinner + label makes it
- * unambiguous that work is happening. */
-.dd-rules {
-  position: relative; /* anchor for the absolute-positioned overlay */
+/* ---------- Per-card "applying rules" loading bar ----------
+ * Thin animated gradient along the bottom border of ONLY the sequence
+ * card currently being updated by an AI-boost command. Non-blocking —
+ * the rest of the editor stays fully interactive — and tightly scoped
+ * so the user sees exactly which rule set is receiving the change. */
+.dd-card {
+  position: relative; /* anchor for the absolute-positioned loading bar */
 }
-.dd-rules--applying .dd-card,
-.dd-rules--applying .dd-add-sequence-row {
+.dd-card__loading-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  border-bottom-left-radius: inherit;
+  border-bottom-right-radius: inherit;
+  overflow: hidden;
+  background: linear-gradient(
+    90deg,
+    rgba(0, 108, 235, 0) 0%,
+    rgba(0, 108, 235, 0.15) 20%,
+    rgba(0, 108, 235, 0.85) 50%,
+    rgba(0, 108, 235, 0.15) 80%,
+    rgba(0, 108, 235, 0) 100%
+  );
+  background-size: 50% 100%;
+  background-repeat: no-repeat;
+  animation: dd-card-loading-slide 1.1s linear infinite;
   pointer-events: none;
 }
-.dd-rules__apply-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: 72px;
-  background: rgba(247, 248, 250, 0.55);
-  backdrop-filter: blur(1.5px);
-  -webkit-backdrop-filter: blur(1.5px);
-  animation: dd-apply-overlay-fade 160ms ease-out 1;
-}
-.dd-rules__apply-overlay-card {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 16px;
-  background: #ffffff;
-  border: 1px solid var(--dex-color-gray-300, #e4e7eb);
-  border-radius: 999px;
-  box-shadow: 0 6px 18px rgba(15, 23, 36, 0.12);
-  color: var(--dex-color-gray-1600, #4a4a4a);
-}
-.dd-rules__apply-spinner {
-  display: inline-block;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid rgba(0, 108, 235, 0.25);
-  border-top-color: #006ceb;
-  animation: dd-apply-spin 0.7s linear infinite;
-}
-@keyframes dd-apply-overlay-fade {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-@keyframes dd-apply-spin {
-  to { transform: rotate(360deg); }
+@keyframes dd-card-loading-slide {
+  0%   { background-position: -50% 0; }
+  100% { background-position: 150% 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .dd-rules__apply-overlay { animation: none; }
-  .dd-rules__apply-spinner {
+  .dd-card__loading-bar {
     animation: none;
-    border-top-color: #006ceb;
+    background: rgba(0, 108, 235, 0.6);
+    background-size: auto;
   }
 }
 
