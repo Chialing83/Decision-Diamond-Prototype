@@ -29,9 +29,9 @@
             <DexSwitch
               v-model="aiOpen"
               :id="aiSwitchId"
-              aria-label="Toggle AI assistant"
+              aria-label="Toggle AI boost"
             />
-            <DexText variant="body-2" as="span">AI assistant</DexText>
+            <DexText variant="body-2" as="span">AI boost</DexText>
           </label>
           <!-- Test button — opens a modal that takes user-provided
                sample inputs and runs the saved logic locally, surfacing
@@ -53,7 +53,7 @@
         :class="{ 'dd-editor__body--single': !aiOpen }"
         :style="aiOpen ? bodyGridStyle : undefined"
       >
-        <!-- ===== Left: AI assistant pane ===== -->
+        <!-- ===== Left: AI boost pane ===== -->
         <aside
           v-if="aiOpen"
           class="dd-ai"
@@ -67,7 +67,7 @@
                 variant="heading-4"
                 as="h3"
               >
-                AI assistant
+                AI boost
               </DexText>
             </div>
             <button
@@ -400,7 +400,7 @@
           :class="{ 'dd-resizer--active': isResizing }"
           role="separator"
           aria-orientation="vertical"
-          aria-label="Resize the AI assistant panel"
+          aria-label="Resize the AI boost panel"
           :aria-valuenow="aiWidth"
           :aria-valuemin="MIN_AI_WIDTH"
           :aria-valuemax="maxAiWidth"
@@ -1017,7 +1017,7 @@ function placeholderFor(id: string, qualifier?: 'min' | 'max'): string {
 }
 
 // ===================================================================
-// AI assistant state
+// AI boost state
 // ===================================================================
 
 // Default to ON when the Decision Diamond config modal first opens so
@@ -4516,7 +4516,7 @@ function onDragHandleKeydown(gi: number, e: KeyboardEvent) {
 }
 
 /** Append a fresh, unconnected sequence (placeholder) to the diamond.
- *  The AI assistant tracks this via its config watcher but stays silent —
+ *  The AI boost tracks this via its config watcher but stays silent —
  *  no automatic chat note clutters the transcript. The user can ask
  *  about the new sequence in the composer to engage the assistant. */
 function addSequence() {
@@ -5617,7 +5617,7 @@ onBeforeUnmount(() => {
   }
 }
 
-/* ===================== Left: AI assistant ===================== */
+/* ===================== Left: AI boost ===================== */
 .dd-ai {
   display: flex;
   flex-direction: column;
@@ -5716,7 +5716,7 @@ onBeforeUnmount(() => {
   font-family: inherit;
   transition: border-color 0.12s ease, background 0.12s ease;
   /* Cap the card at its default width — never grows past this even
-     when the AI assistant pane is resized wider. */
+     when the AI boost pane is resized wider. */
   width: 100%;
   max-width: 380px;
   align-self: center;

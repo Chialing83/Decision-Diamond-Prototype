@@ -1,7 +1,7 @@
 /**
  * CRM-relevant decision-diamond suggestions per trigger entity.
  *
- * Each `TriggerSuggestion` is a starter template the AI assistant can
+ * Each `TriggerSuggestion` is a starter template the AI boost can
  * surface on the welcome screen when a known trigger is connected
  * upstream. The structure mirrors the editor's existing `Suggestion`
  * type so the apply-suggestion flow doesn't need a separate code path.

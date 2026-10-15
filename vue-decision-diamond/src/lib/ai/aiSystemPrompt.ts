@@ -1,5 +1,5 @@
 /**
- * System prompt for the Decision Diamond AI assistant.
+ * System prompt for the Decision Diamond AI boost.
  *
  * The text below is FROZEN — no timestamps, no UUIDs, no per-user
  * interpolation. Prompt caching is a prefix-match: any byte change here

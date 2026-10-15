@@ -1,5 +1,5 @@
 /**
- * Tool definitions for the Decision Diamond AI assistant.
+ * Tool definitions for the Decision Diamond AI boost.
  *
  * These are pure declarations — the actual mutators live in
  * DecisionDiamondEditor.vue (they need access to props.config and emit).
