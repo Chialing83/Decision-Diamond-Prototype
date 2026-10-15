@@ -71,7 +71,7 @@
               </DexText>
             </div>
             <button
-              v-if="transcript.length > 0 && !isDraftActive"
+              v-if="transcript.length > 0"
               type="button"
               class="dd-ai__reset-btn"
               aria-label="Start a new conversation"
@@ -82,80 +82,6 @@
             </button>
           </header>
 
-          <!-- Tab bar: shows the Current (live) tab plus any saved
-               draft tabs. Only renders when at least one draft exists
-               so the single-tab default is unchanged. -->
-          <nav
-            v-if="draftTabs.length > 0"
-            class="dd-ai__tabs"
-            role="tablist"
-            aria-label="Chat sessions"
-          >
-            <button
-              type="button"
-              role="tab"
-              class="dd-ai__tab"
-              :class="{ 'dd-ai__tab--active': activeTabId === 'live' }"
-              :aria-selected="activeTabId === 'live'"
-              @click="activeTabId = 'live'"
-            >
-              Current
-            </button>
-            <button
-              v-for="d in draftTabs"
-              :key="d.id"
-              type="button"
-              role="tab"
-              class="dd-ai__tab"
-              :class="{ 'dd-ai__tab--active': activeTabId === d.id }"
-              :aria-selected="activeTabId === d.id"
-              @click="activeTabId = d.id"
-            >
-              {{ d.label }}
-              <span
-                class="dd-ai__tab-close"
-                role="button"
-                tabindex="0"
-                aria-label="Discard this draft"
-                @click.stop="discardDraft(d.id)"
-                @keydown.enter.stop.prevent="discardDraft(d.id)"
-              >
-                ×
-              </span>
-            </button>
-          </nav>
-
-          <!-- Draft banner: when a draft tab is active, replace the
-               composer area with Apply / Discard controls at the top
-               so the user sees the primary actions right away. -->
-          <div
-            v-if="activeDraft"
-            class="dd-ai__draft-banner"
-            role="region"
-            :aria-label="`${activeDraft.label} controls`"
-          >
-            <div class="dd-ai__draft-banner-text">
-              <strong>{{ activeDraft.label }}</strong>
-              — read-only snapshot. Apply to override the current rules,
-              or discard to drop this draft.
-            </div>
-            <div class="dd-ai__draft-banner-actions">
-              <DexButton
-                variant="solid"
-                size="small"
-                @click="applyDraft(activeDraft.id)"
-              >
-                Apply draft
-              </DexButton>
-              <DexButton
-                variant="outline"
-                size="small"
-                @click="discardDraft(activeDraft.id)"
-              >
-                Discard
-              </DexButton>
-            </div>
-          </div>
 
           <div
             ref="transcriptEl"
@@ -166,7 +92,7 @@
             aria-label="Assistant conversation"
           >
             <!-- Welcome / empty state -->
-            <div v-if="visibleTranscript.length === 0" class="dd-ai__welcome">
+            <div v-if="transcript.length === 0" class="dd-ai__welcome">
               <DexText variant="heading-3" as="h4" class="dd-ai__welcome-title">
                 How can I help with your decision logic?
               </DexText>
@@ -206,7 +132,7 @@
             <!-- Conversation -->
             <template v-else>
               <div
-                v-for="(msg, idx) in visibleTranscript"
+                v-for="(msg, idx) in transcript"
                 :key="idx"
                 class="dd-ai__message"
                 :class="{
@@ -345,7 +271,7 @@
             </template>
           </div>
 
-          <div v-if="!isDraftActive" class="dd-ai__composer">
+          <div class="dd-ai__composer">
             <div class="dd-ai__input-row">
               <button
                 type="button"
@@ -491,52 +417,9 @@
         <!-- ===== Right: rule cards + footer ===== -->
         <main
           class="dd-rules"
-          :class="{
-            'dd-rules--centered': !aiOpen,
-            'dd-rules--draft-view': isDraftActive,
-          }"
+          :class="{ 'dd-rules--centered': !aiOpen }"
           aria-label="Sequence rules"
         >
-          <!-- Draft tab preview: when the active chat tab is a draft
-               snapshot, replace the editable rule cards with a
-               read-only summary of the snapshot's rules. Users apply
-               or discard from the left pane's draft banner. -->
-          <section
-            v-if="activeDraft"
-            class="dd-rules__draft-preview"
-            aria-label="Draft rules preview"
-          >
-            <header class="dd-rules__draft-header">
-              <DexText variant="heading-4" as="h3">
-                {{ activeDraft.label }} — rules snapshot
-              </DexText>
-              <DexText variant="body-2">
-                Read-only. Switch to <strong>Current</strong> in the chat
-                tabs to edit live rules, or Apply this draft to
-                override them.
-              </DexText>
-            </header>
-            <ol
-              v-if="activeDraft.config.groups.length > 0"
-              class="dd-rules__draft-list"
-            >
-              <li
-                v-for="(g, gi) in activeDraft.config.groups"
-                :key="g.id"
-                class="dd-rules__draft-item"
-              >
-                {{ summarizeGroup(g, gi) }}
-              </li>
-            </ol>
-            <DexText
-              v-else
-              variant="body-2"
-              class="dd-rules__draft-empty"
-            >
-              This draft has no rules yet.
-            </DexText>
-          </section>
-
           <template
             v-for="(group, gi) in config.groups"
             :key="group.id"
@@ -992,10 +875,9 @@
       @close="testModalOpen = false"
     />
 
-    <!-- New-chat modal — appears when the user clicks the New chat
-         button. Lets them keep the current conversation as a Draft
-         tab (so the chat + rules snapshot survives for later apply),
-         just clear the current conversation, or cancel. -->
+    <!-- New-chat modal — confirms clearing the current conversation
+         AND rules. Changes to rules stay in the editor until the
+         user clicks Apply, which is what pushes them to the canvas. -->
     <div
       v-if="newChatModalOpen"
       class="dd-newchat-backdrop"
@@ -1024,10 +906,9 @@
         </header>
         <div class="dd-newchat__body">
           <DexText variant="body-1">
-            Your current conversation and its rules will be lost unless
-            you keep them as a Draft tab. From a Draft tab you can
-            Apply the saved rules to override the current ones, or
-            discard them any time.
+            This will clear your current conversation and the rules in
+            the editor. Nothing changes on the canvas until you click
+            <strong>Apply</strong>.
           </DexText>
         </div>
         <footer class="dd-newchat__footer">
@@ -1038,16 +919,10 @@
             Cancel
           </DexButton>
           <DexButton
-            variant="outline"
-            @click="clearChatOnly"
-          >
-            Clear this chat
-          </DexButton>
-          <DexButton
             variant="solid"
-            @click="saveAsDraftAndClear"
+            @click="clearChatAndRules"
           >
-            Save as draft tab
+            Clear and start over
           </DexButton>
         </footer>
       </div>
@@ -1079,7 +954,6 @@ import type { EntityId } from '../../decisionDiamond/entities';
 import type {
   DDBlock,
   DDCondition,
-  DDGroup,
   DecisionDiamondConfig,
 } from '../../decisionDiamond/types';
 import { uid } from '../../decisionDiamond/types';
@@ -1415,43 +1289,13 @@ const transcript = ref<TranscriptItem[]>([]);
 const isInternalMutation = ref(false);
 
 // ===================================================================
-// Draft tabs — a "New chat" session can be saved as a frozen snapshot
-// (transcript + rules at the time) that lives alongside the current
-// (live) tab. Draft tabs are read-only reviewable snapshots; users
-// can Apply one to overwrite the live rules with its rules, or
-// Discard it to drop it. The live tab is always index 0 and is the
-// only tab whose edits flow back into props.config.
+// New-chat modal — clicking "New chat" opens a confirmation modal.
+// Confirming clears BOTH the chat transcript AND the rules in the
+// editor. The emptied rules only reach the canvas when the user
+// clicks Apply (the normal save path). Nothing drafts/stashes; this
+// is the simple MVP behavior.
 // ===================================================================
 
-interface DraftTabSnapshot {
-  id: string;
-  label: string;
-  createdAt: number;
-  transcript: TranscriptItem[];
-  config: DecisionDiamondConfig;
-}
-
-const draftTabs = ref<DraftTabSnapshot[]>([]);
-/** `'live'` or a DraftTabSnapshot id. Drives which tab's content is
- *  showing in the left (chat) and right (rules) panes. */
-const activeTabId = ref<string>('live');
-const activeDraft = computed<DraftTabSnapshot | null>(() => {
-  if (activeTabId.value === 'live') return null;
-  return draftTabs.value.find((t) => t.id === activeTabId.value) ?? null;
-});
-const isDraftActive = computed(() => activeDraft.value !== null);
-/** Transcript shown in the chat pane — swapped to the draft's saved
- *  copy when a draft tab is active, otherwise the live transcript ref.
- *  Lets the whole chat UI iterate one source and automatically track
- *  the tab the user is viewing. */
-const visibleTranscript = computed<TranscriptItem[]>(() =>
-  activeDraft.value ? activeDraft.value.transcript : transcript.value,
-);
-
-/** Open the New-chat modal — gives the user the choice to save the
- *  current conversation as a draft tab before clearing, or just
- *  destructively clear. See the modal template at the bottom of the
- *  pane for the three options. */
 const newChatModalOpen = ref(false);
 
 function openNewChatModal() {
@@ -1460,70 +1304,29 @@ function openNewChatModal() {
   newChatModalOpen.value = true;
 }
 
-/** Snapshot the current (live) transcript + rules into a new draft
- *  tab, then clear the live transcript so the user can start fresh.
- *  Rules on the right stay as-is because the live-tab rules are the
- *  working surface; drafts are a separate historical copy. */
-function saveAsDraftAndClear() {
-  const id = `draft-${Date.now()}`;
-  const label = `Draft ${draftTabs.value.length + 1}`;
-  draftTabs.value = [
-    ...draftTabs.value,
+/** Clear both the chat transcript and the rules in the editor. The
+ *  rules get reset to a single empty Sequence 1 — matching the shape
+ *  the editor opens into for an unconfigured DD. The emptied rules
+ *  live in the editor until the user clicks Apply, which pushes to
+ *  the canvas as a normal save. */
+function clearChatAndRules() {
+  transcript.value = [];
+  isInternalMutation.value = true;
+  const next = cloneConfig();
+  next.groups = [
     {
-      id,
-      label,
-      createdAt: Date.now(),
-      transcript: transcript.value.map((t) => ({ ...t })) as TranscriptItem[],
-      // Deep clone so later edits to the live config don't mutate the
-      // snapshot. cloneConfig() reads from props.config.
-      config: cloneConfig(),
+      id: uid('g'),
+      targetFlowId: '',
+      targetName: '',
+      blocks: [],
     },
   ];
-  transcript.value = [];
-  newChatModalOpen.value = false;
-  // Stay on the live tab — user wants to start fresh here. The draft
-  // is now reachable via the tab bar.
-}
-
-/** Destructive clear — the legacy "New chat" behavior. */
-function clearChatOnly() {
-  transcript.value = [];
-  newChatModalOpen.value = false;
-}
-
-/** Promote a draft's rules to the live config, overriding whatever is
- *  there. The draft tab itself stays in the tab bar as a record. */
-function applyDraft(id: string) {
-  const d = draftTabs.value.find((t) => t.id === id);
-  if (!d) return;
-  isInternalMutation.value = true;
-  emit('update:config', JSON.parse(JSON.stringify(d.config)));
-  // Switch back to live so the user sees the applied result.
-  activeTabId.value = 'live';
+  next.defaultRouting = '__drop__';
+  emit('update:config', next);
   window.setTimeout(() => {
     isInternalMutation.value = false;
   }, FEEDBACK_DEBOUNCE_MS + 50);
-}
-
-/** Remove a draft tab. If it was active, fall back to live. */
-function discardDraft(id: string) {
-  draftTabs.value = draftTabs.value.filter((t) => t.id !== id);
-  if (activeTabId.value === id) activeTabId.value = 'live';
-}
-
-/** One-line human-readable summary per sequence group in a draft's
- *  snapshot config — rendered in the right pane when a draft tab is
- *  active (instead of the editable rule cards). */
-function summarizeGroup(group: DDGroup, index: number): string {
-  if (!group.blocks.length) return `Sequence ${index + 1}: (no rules)`;
-  const blockSummaries = group.blocks.map((b) =>
-    b.conditions
-      .map((c) => describeCondition(c) || '…')
-      .filter((s) => s)
-      .join(' AND '),
-  );
-  const joined = blockSummaries.filter((s) => s).join(' OR ');
-  return `Sequence ${index + 1}: ${joined || '(empty)'}`;
+  newChatModalOpen.value = false;
 }
 
 // ===================================================================
@@ -1861,6 +1664,14 @@ type ConditionRecipe = {
   field: string;
   operator: string;
   values: string[];
+  /** Present when the recipe targets a CONTACT-entity condition
+   *  (e.g. `Contact's Tags contains VIP`). applyRecipe sets
+   *  `entity: 'contact'` + the chosen `category` so the row renders
+   *  with the Contact's subject + sub-category chips instead of a
+   *  bare deal/trigger field. */
+  contactScope?: {
+    category: 'tags' | 'standard' | 'constant' | 'custom';
+  };
 };
 
 const CONDITION_RECIPES: ConditionRecipe[] = [
@@ -1920,38 +1731,48 @@ function recipesForSequence(gi: number): ConditionRecipe[] {
   let pool: ConditionRecipe[];
   if (props.triggerSlug && isKnownTriggerSlug(props.triggerSlug)) {
     pool = TRIGGER_SMART_PILLS[props.triggerSlug].map((p) => ({
-      id: `${p.field}-${p.values.join('-')}`,
+      id: `${p.contactScope ? 'contact-' + p.contactScope.category + '-' : ''}${p.field}-${p.values.join('-')}`,
       label: p.label,
       field: p.field,
       operator: p.operator,
       values: [...p.values],
+      contactScope: p.contactScope,
     }));
   } else {
     pool = CONDITION_RECIPES;
   }
-  // Legacy Deal pool has unique fields per recipe, so a field-only
-  // filter is correct. Trigger pools may reuse a field across multiple
-  // value variants (e.g. `Appointment event = Schedules` and
-  // `Appointment event = Cancels`), so they need the broader
-  // field-only filter to NOT suppress sibling values — only filter out
-  // the exact (field, values) pair that's already configured. We track
-  // both keys.
-  const usedFieldsAndValues = new Set<string>();
+  // Build an (entity, category, field) key per existing condition in
+  // the sequence. Trigger-scope pills with the same field as any
+  // existing condition drop out entirely (so once `quote.status equals
+  // Sent` is in the sequence, ALL `quote.status` recipes are hidden —
+  // including Accepted and Viewed). Contact-scoped recipes dedup on
+  // their (contact, category, field) key so each Contact axis is
+  // tracked independently from trigger fields.
+  const recipeKey = (r: {
+    field: string;
+    contactScope?: { category: string };
+  }) =>
+    `${r.contactScope ? 'contact' : ''}::${r.contactScope?.category ?? ''}::${r.field ?? ''}`;
+  const condKey = (c: {
+    entity?: string;
+    category?: string;
+    field?: string;
+  }) =>
+    `${c.entity ?? ''}::${c.category ?? ''}::${c.field ?? ''}`;
+  const usedKeys = new Set<string>();
   const group = props.config.groups[gi];
   if (group) {
     for (const b of group.blocks) {
       for (const c of b.conditions) {
-        if (c.field) {
-          usedFieldsAndValues.add(`${c.field}::${JSON.stringify(c.values)}`);
-        }
+        if (c.field || c.category || c.entity) usedKeys.add(condKey(c));
       }
     }
   }
   return pool
     .filter((r) => {
-      const exactKey = `${r.field}::${JSON.stringify(r.values)}`;
-      if (usedFieldsAndValues.has(exactKey)) return false;
-      // Legacy Deal pool: also suppress whole field if already used.
+      if (usedKeys.has(recipeKey(r))) return false;
+      // Legacy Deal pool: also suppress whole field if already used
+      // (preserves the pre-existing behaviour for non-trigger flows).
       if (pool === CONDITION_RECIPES && used.has(r.field)) return false;
       return true;
     })
@@ -2498,12 +2319,28 @@ function applyRecipe(recipe: ConditionRecipe) {
   if (!slot) return;
   postUser(`Set this to "${recipe.label}"`);
   isInternalMutation.value = true;
-  mutate(slot.gi, slot.bi, slot.ci, (c) => ({
-    ...c,
-    field: recipe.field,
-    operator: recipe.operator,
-    values: [...recipe.values],
-  }));
+  mutate(slot.gi, slot.bi, slot.ci, (c) =>
+    recipe.contactScope
+      ? {
+          ...c,
+          entity: 'contact',
+          subject: '',
+          category: recipe.contactScope.category,
+          field: recipe.field || '',
+          operator: recipe.operator,
+          values: [...recipe.values],
+        }
+      : {
+          ...c,
+          // Clear any lingering Contact binding from a prior pick so a
+          // trigger-scope recipe produces a bare trigger-field condition.
+          entity: undefined,
+          category: '',
+          field: recipe.field,
+          operator: recipe.operator,
+          values: [...recipe.values],
+        },
+  );
   window.setTimeout(() => {
     isInternalMutation.value = false;
   }, FEEDBACK_DEBOUNCE_MS + 50);
@@ -7293,128 +7130,11 @@ onBeforeUnmount(() => {
 }
 
 /* ============================================================
- * Draft-chat tabs + New-chat modal + right-pane draft preview
+ * New-chat modal
  * ============================================================ */
 
-/* Tab bar above the chat transcript — only visible when at least
- * one draft exists. */
-.dd-ai__tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--dex-color-gray-300, #e4e7eb);
-  background: #fff;
-}
-.dd-ai__tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px 4px 12px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--dex-color-gray-1600, #4a4a4a);
-  background: var(--dex-color-gray-100, #f6f7f9);
-  border: 1px solid var(--dex-color-gray-300, #e4e7eb);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background-color 0.12s ease, color 0.12s ease,
-    border-color 0.12s ease;
-}
-.dd-ai__tab:hover {
-  background: var(--dex-color-gray-200, #ebeef2);
-}
-.dd-ai__tab--active {
-  background: #e6f0ff;
-  border-color: #006ceb;
-  color: #004ea8;
-}
-.dd-ai__tab-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: transparent;
-  color: inherit;
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  user-select: none;
-}
-.dd-ai__tab-close:hover {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-/* Draft banner at the top of the chat pane when a draft tab is
- * active — replaces the composer with Apply / Discard controls. */
-.dd-ai__draft-banner {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  margin: 0 16px 10px;
-  background: #fff8e1;
-  border: 1px solid #f3d97a;
-  border-radius: 8px;
-  color: #0f1724;
-  font-size: 13px;
-  line-height: 1.4;
-}
-.dd-ai__draft-banner-text {
-  flex: 1 1 220px;
-}
-.dd-ai__draft-banner-actions {
-  display: inline-flex;
-  gap: 8px;
-}
-
-/* Right-pane draft preview — hides the editable rule editor and
- * shows a read-only summary of the draft's snapshot. */
-.dd-rules--draft-view > *:not(.dd-rules__draft-preview) {
-  display: none !important;
-}
-.dd-rules__draft-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 24px;
-  margin: 24px;
-  background: #fff;
-  border: 1px solid var(--dex-color-gray-300, #e4e7eb);
-  border-radius: 12px;
-  box-shadow: 0 1px 2px rgba(15, 23, 36, 0.04);
-}
-.dd-rules__draft-header {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.dd-rules__draft-list {
-  margin: 0;
-  padding-left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  color: #0f1724;
-  font-size: 14px;
-  line-height: 1.5;
-}
-.dd-rules__draft-item {
-  padding: 10px 12px;
-  background: var(--dex-color-gray-100, #f6f7f9);
-  border-radius: 8px;
-}
-.dd-rules__draft-empty {
-  color: var(--dex-color-gray-1600, #4a4a4a);
-  font-style: italic;
-}
-
-/* New-chat modal — overlays the editor so the user can't miss the
- * decision between save-as-draft / clear / cancel. */
+/* Overlays the editor so the user can't miss the choice between
+ * Cancel and Clear-and-start-over. */
 .dd-newchat-backdrop {
   position: absolute;
   inset: 0;
