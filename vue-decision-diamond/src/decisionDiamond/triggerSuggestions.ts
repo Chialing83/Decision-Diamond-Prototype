@@ -389,17 +389,23 @@ const QUOTE_SMART_PILLS: TriggerSmartPill[] = [
   // (different values, same category key) with a Standard-field pill
   // (different category key) so after one is picked the other axis
   // still has something to offer.
+  //
+  // NOTE: Tag values are the lowercase slug ids defined in the
+  // DecisionDiamondEditor's DUMMY_TAG_OPTIONS array (not the display
+  // labels) — otherwise the editor's <select> can't match the option
+  // and renders the "Select" placeholder instead of the chosen tag.
+  // Keep them in sync when adding new Tag pills.
   {
     field: '',
     operator: 'contains',
-    values: ['VIP'],
+    values: ['vip'],
     label: "Contact's Tags contains VIP",
     contactScope: { category: 'tags' },
   },
   {
     field: '',
     operator: 'contains',
-    values: ['Repeat buyer'],
+    values: ['repeat-buyer'],
     label: "Contact's Tags contains Repeat buyer",
     contactScope: { category: 'tags' },
   },

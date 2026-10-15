@@ -2397,33 +2397,40 @@ function mirrorRecipeTo(gi: number) {
   const next = cloneConfig();
   const group = next.groups[gi];
   if (!group) return;
-  const lastBlockIdx = group.blocks.length - 1;
-  let landedSlot: { gi: number; bi: number; ci: number };
-  if (lastBlockIdx < 0) {
-    group.blocks.push({
-      id: uid('b'),
-      conditions: [
-        {
+  // Build the condition in the shape that matches the recipe's scope
+  // — Contact-scope recipes need entity + category set so the mirror
+  // produces a real Contact's Tags/Standard condition, not a bare
+  // trigger field slot (which was the earlier bug).
+  const buildCond = () =>
+    recipe.contactScope
+      ? {
+          id: uid('c'),
+          entity: 'contact' as const,
+          subject: '',
+          category: recipe.contactScope.category,
+          field: recipe.field || '',
+          operator: recipe.operator,
+          values: [...recipe.values],
+        }
+      : {
           id: uid('c'),
           subject: '',
           category: '',
           field: recipe.field,
           operator: recipe.operator,
           values: [...recipe.values],
-        },
-      ],
+        };
+  const lastBlockIdx = group.blocks.length - 1;
+  let landedSlot: { gi: number; bi: number; ci: number };
+  if (lastBlockIdx < 0) {
+    group.blocks.push({
+      id: uid('b'),
+      conditions: [buildCond()],
     });
     landedSlot = { gi, bi: 0, ci: 0 };
   } else {
     const ci = group.blocks[lastBlockIdx].conditions.length;
-    group.blocks[lastBlockIdx].conditions.push({
-      id: uid('c'),
-      subject: '',
-      category: '',
-      field: recipe.field,
-      operator: recipe.operator,
-      values: [...recipe.values],
-    });
+    group.blocks[lastBlockIdx].conditions.push(buildCond());
     landedSlot = { gi, bi: lastBlockIdx, ci };
   }
   emit('update:config', next);
@@ -5258,6 +5265,7 @@ const FIELD_OR_CONTACT_OPTIONS = computed(() => [
  *  common SMB CRM tagging patterns. */
 const DUMMY_TAG_OPTIONS = [
   { value: 'vip', label: 'VIP' },
+  { value: 'repeat-buyer', label: 'Repeat buyer' },
   { value: 'newsletter-subscriber', label: 'Newsletter Subscriber' },
   { value: 'webinar-attendee', label: 'Webinar Attendee' },
   { value: 'demo-requested', label: 'Demo Requested' },
