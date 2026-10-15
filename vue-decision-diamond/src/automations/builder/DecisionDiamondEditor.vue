@@ -907,29 +907,23 @@
         </header>
         <div class="dd-newchat__body">
           <DexText variant="body-1">
-            You have changes in the editor that haven't been saved to
-            the canvas yet. Click <strong>Apply</strong> to keep them,
-            or close without applying to discard them.
+            You have changes in the editor that haven't been applied
+            to the canvas yet. Click <strong>Apply</strong> to update
+            them, or discard to clear changes.
           </DexText>
         </div>
         <footer class="dd-newchat__footer">
           <DexButton
-            variant="outline"
-            @click="closeConfirmModalOpen = false"
-          >
-            Keep editing
-          </DexButton>
-          <DexButton
-            variant="outline"
+            variant="transparent"
             @click="discardAndClose"
           >
-            Close without applying
+            Discard
           </DexButton>
           <DexButton
             variant="solid"
             @click="applyAndClose"
           >
-            Apply and close
+            Apply
           </DexButton>
         </footer>
       </div>
