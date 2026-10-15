@@ -77,7 +77,7 @@
               aria-label="Start a new conversation"
               @click="openNewChatModal"
             >
-              <span class="dd-ai__reset-plus" aria-hidden="true">+</span>
+              <DexIcon name="rotate-cw" aria-hidden="true" />
               New chat
             </button>
           </header>
@@ -5955,18 +5955,6 @@ onBeforeUnmount(() => {
 .dd-ai__reset-btn:focus-visible {
   outline: 2px solid var(--dex-color-blue-700, #006ceb);
   outline-offset: 2px;
-}
-.dd-ai__reset-plus {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 14px;
-  height: 14px;
-  font-size: 18px;
-  line-height: 1;
-  font-weight: 500;
-  color: inherit;
-  margin-top: -1px;
 }
 .dd-diamond--lg {
   width: 14px;
