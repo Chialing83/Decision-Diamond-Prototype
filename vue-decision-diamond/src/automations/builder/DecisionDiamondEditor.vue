@@ -416,9 +416,31 @@
         <!-- ===== Right: rule cards + footer ===== -->
         <main
           class="dd-rules"
-          :class="{ 'dd-rules--centered': !aiOpen }"
+          :class="{
+            'dd-rules--centered': !aiOpen,
+            'dd-rules--applying': isApplyingSuggestion,
+          }"
           aria-label="Sequence rules"
         >
+          <!-- Loading overlay: appears while a template / AI boost edit is
+               being applied to the rule set. Without this the editor
+               looked stale during the thinking+composing phases and
+               users wondered if their click registered. Covers the
+               cards (not the footer) with a dim + centered spinner. -->
+          <div
+            v-if="isApplyingSuggestion"
+            class="dd-rules__apply-overlay"
+            role="status"
+            aria-live="polite"
+          >
+            <div class="dd-rules__apply-overlay-card">
+              <span class="dd-rules__apply-spinner" aria-hidden="true" />
+              <DexText variant="body-2" as="span">
+                Applying rules…
+              </DexText>
+            </div>
+          </div>
+
           <template
             v-for="(group, gi) in config.groups"
             :key="group.id"
@@ -431,12 +453,14 @@
             />
 
             <section
+              :ref="(el) => setGroupCardRef(gi, el as HTMLElement | null)"
               class="dd-card"
               :class="{
                 'dd-card--dragging': draggingIdx === gi,
                 'dd-card--drag-target':
                   dragOverIdx === gi && draggingIdx !== null && draggingIdx !== gi,
                 'dd-card--just-updated': recentlyUpdatedGi === gi,
+                'dd-card--focus-highlight': focusHighlightGi === gi,
               }"
               :aria-labelledby="`dd-card-title-${group.id}`"
               @dragover.prevent="onCardDragOver(gi, $event)"
@@ -934,6 +958,12 @@ const props = defineProps<{
    *  trigger's attributes per the Confluence reference. Falls back to
    *  the default Deal field set when null/unknown. */
   triggerSlug?: string | null;
+  /** Index of the sequence card to scroll into view + flash-highlight
+   *  on open. Set by the canvas when the user clicks one of the
+   *  shattered per-sequence mini-DDs; null when the editor is opened
+   *  on a fresh/unshattered diamond. The highlight auto-fades after
+   *  the attention-draw animation. */
+  focusSequenceIndex?: number | null;
 }>();
 
 const emit = defineEmits<{
@@ -1035,6 +1065,13 @@ const rootEl = ref<HTMLElement | null>(null);
 const closeButtonEl = ref<{ $el?: HTMLElement } | HTMLElement | null>(null);
 const isThinking = ref(false);
 const isComposing = ref(false); // transition phase between thinking + posting
+/** True while a suggestion/AI-boost edit is mid-flight — covers both the
+ *  "thinking" and "composing" phases. Drives the loading overlay on the
+ *  rules pane so the user sees an interaction cue (instead of a stale
+ *  editor) between click and rule-list update. */
+const isApplyingSuggestion = computed(
+  () => isThinking.value || isComposing.value,
+);
 const previouslyFocused = ref<HTMLElement | null>(null);
 
 // ===================================================================
@@ -5234,6 +5271,34 @@ function flashSequenceCard(gi: number) {
   }, 1200);
 }
 
+/** Sequence card the user drilled into from the canvas (one of the
+ *  shattered per-sequence mini-DDs). Keeps the highlight visible longer
+ *  than the AI's 1.2s flash so the user can orient themselves in the
+ *  full rules list before the glow fades. */
+const focusHighlightGi = ref<number | null>(null);
+let focusHighlightTimer: number | undefined;
+const groupCardRefs = new Map<number, HTMLElement>();
+
+function setGroupCardRef(gi: number, el: HTMLElement | null) {
+  if (el) groupCardRefs.set(gi, el);
+  else groupCardRefs.delete(gi);
+}
+
+function focusSequenceCard(gi: number) {
+  if (gi < 0) return;
+  focusHighlightGi.value = gi;
+  void nextTick(() => {
+    const card =
+      groupCardRefs.get(gi) ??
+      document.querySelectorAll<HTMLElement>('.dd-rules .dd-card')[gi];
+    card?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+  if (focusHighlightTimer) window.clearTimeout(focusHighlightTimer);
+  focusHighlightTimer = window.setTimeout(() => {
+    focusHighlightGi.value = null;
+  }, 2600);
+}
+
 /** A recipe the user just placed that we can offer to mirror elsewhere. */
 const mirrorOffer = shallowRef<{
   recipe: ConditionRecipe;
@@ -5452,6 +5517,16 @@ onMounted(() => {
     if (bodyEl.value && typeof ResizeObserver !== 'undefined') {
       resizeObserver = new ResizeObserver(() => trackContainerWidth());
       resizeObserver.observe(bodyEl.value);
+    }
+    // If the editor was opened by clicking a specific per-sequence
+    // mini-DD on the canvas, scroll that sequence card into view and
+    // apply the focus highlight ring so the user can quickly orient
+    // themselves within the full rules list.
+    if (
+      props.focusSequenceIndex != null &&
+      props.focusSequenceIndex >= 0
+    ) {
+      focusSequenceCard(props.focusSequenceIndex);
     }
   });
 });
@@ -6141,6 +6216,108 @@ onBeforeUnmount(() => {
   .dd-card--just-updated {
     animation: none;
     box-shadow: inset 0 0 0 2px rgba(131, 88, 241, 0.6);
+  }
+}
+
+/* Longer-lived highlight for the sequence the user drilled into from a
+ * per-sequence mini-DD on the canvas. Pulses twice then holds a soft
+ * ring for a moment before fading — gives enough time to orient within
+ * the full rules list without constantly flashing. */
+.dd-card--focus-highlight {
+  animation: dd-card-focus-highlight 2.4s ease-out 1;
+  position: relative;
+}
+@keyframes dd-card-focus-highlight {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(0, 108, 235, 0.45),
+      inset 0 0 0 2px rgba(0, 108, 235, 0.9);
+    background: #eef5ff;
+  }
+  35% {
+    box-shadow:
+      0 0 0 10px rgba(0, 108, 235, 0),
+      inset 0 0 0 2px rgba(0, 108, 235, 0.75);
+    background: #f3f7ff;
+  }
+  70% {
+    box-shadow:
+      0 0 0 6px rgba(0, 108, 235, 0.18),
+      inset 0 0 0 2px rgba(0, 108, 235, 0.5);
+    background: #f7faff;
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(0, 108, 235, 0),
+      inset 0 0 0 0 rgba(0, 108, 235, 0);
+    background: #fff;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dd-card--focus-highlight {
+    animation: none;
+    box-shadow: inset 0 0 0 2px rgba(0, 108, 235, 0.65);
+  }
+}
+
+/* ---------- "Applying rules…" loading overlay ----------
+ * Painted over the rules pane while a suggestion / AI boost edit is
+ * mid-apply (isThinking || isComposing). Semi-transparent dim lets the
+ * underlying cards show through so the user can see the preview flip
+ * as it lands, while a centered pill with a spinner + label makes it
+ * unambiguous that work is happening. */
+.dd-rules {
+  position: relative; /* anchor for the absolute-positioned overlay */
+}
+.dd-rules--applying .dd-card,
+.dd-rules--applying .dd-add-sequence-row {
+  pointer-events: none;
+}
+.dd-rules__apply-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 72px;
+  background: rgba(247, 248, 250, 0.55);
+  backdrop-filter: blur(1.5px);
+  -webkit-backdrop-filter: blur(1.5px);
+  animation: dd-apply-overlay-fade 160ms ease-out 1;
+}
+.dd-rules__apply-overlay-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #ffffff;
+  border: 1px solid var(--dex-color-gray-300, #e4e7eb);
+  border-radius: 999px;
+  box-shadow: 0 6px 18px rgba(15, 23, 36, 0.12);
+  color: var(--dex-color-gray-1600, #4a4a4a);
+}
+.dd-rules__apply-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 108, 235, 0.25);
+  border-top-color: #006ceb;
+  animation: dd-apply-spin 0.7s linear infinite;
+}
+@keyframes dd-apply-overlay-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes dd-apply-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dd-rules__apply-overlay { animation: none; }
+  .dd-rules__apply-spinner {
+    animation: none;
+    border-top-color: #006ceb;
   }
 }
 

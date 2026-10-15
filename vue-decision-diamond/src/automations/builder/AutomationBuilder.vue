@@ -586,6 +586,7 @@
       :config="currentConfig"
       :relevant-entities="currentRelevantEntities"
       :trigger-slug="currentTriggerSlug"
+      :focus-sequence-index="editorFocusSequenceIndex"
       @update:config="onConfigUpdate"
       @save="onEditorSave"
       @close="editorDiamondId = null"
@@ -1570,6 +1571,12 @@ if (route.params.id === 'new') {
 
 const selectedNodeIds = ref<Set<string>>(new Set());
 const editorDiamondId = ref<string | null>(null);
+/** When the editor is opened by clicking a sibling (shattered) DD on the
+ *  canvas, we re-assemble all sibling groups into one unified config and
+ *  pass THIS index so the editor can scroll to + highlight that specific
+ *  sequence card. Null when the editor was opened on a fresh/unshattered
+ *  diamond. */
+const editorFocusSequenceIndex = ref<number | null>(null);
 const picker = ref<{
   originId: string;
   type: 'when' | 'then';
@@ -2033,6 +2040,46 @@ function onNodeClick(n: BuilderNode, ev: MouseEvent) {
 
 function openDecisionEditor(diamondId: string) {
   ensureConfig(diamondId);
+
+  // Re-assemble the full set of sibling sequences into one unified
+  // config. The canvas model shatters each saved DD into N sibling
+  // nodes (same groupKey, each carrying one group). When the user
+  // clicks any one of them we want the editor to show the WHOLE set
+  // of rules — not just this sibling's own group — and highlight
+  // the one the click came from.
+  const clicked = nodes.value.find((n) => n.id === diamondId);
+  if (clicked?.groupKey) {
+    const siblings = nodes.value
+      .filter((n) => n.groupKey === clicked.groupKey && n.type === 'decision')
+      // Preserve the vertical order the siblings appear in on the
+      // canvas so the editor's Sequence 1 / 2 / 3 numbering matches
+      // what the user sees. The onEditorSave re-shatter uses topY +
+      // i*verticalSpacing so top-to-bottom === Sequence index asc.
+      .sort((a, b) => a.y - b.y);
+    const mergedGroups: Array<
+      import('../../decisionDiamond/types').DDGroup
+    > = [];
+    let focusIdx = 0;
+    siblings.forEach((sib, i) => {
+      const sibCfg = decisionConfigs[sib.id];
+      if (sibCfg?.groups?.[0]) mergedGroups.push(sibCfg.groups[0]);
+      if (sib.id === diamondId) focusIdx = i;
+    });
+    if (mergedGroups.length > 0) {
+      const base = decisionConfigs[diamondId];
+      decisionConfigs[diamondId] = {
+        groups: mergedGroups,
+        defaultRouting: base?.defaultRouting ?? '__drop__',
+        boundEntity: base?.boundEntity,
+      };
+      editorFocusSequenceIndex.value = focusIdx;
+    } else {
+      editorFocusSequenceIndex.value = null;
+    }
+  } else {
+    editorFocusSequenceIndex.value = null;
+  }
+
   editorDiamondId.value = diamondId;
 }
 
