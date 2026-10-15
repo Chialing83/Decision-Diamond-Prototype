@@ -41,7 +41,7 @@
             Test
           </DexButton>
           <DexButton variant="solid" @click="$emit('save')">
-            Save
+            Apply
           </DexButton>
         </div>
       </header>
@@ -71,16 +71,91 @@
               </DexText>
             </div>
             <button
-              v-if="transcript.length > 0"
+              v-if="transcript.length > 0 && !isDraftActive"
               type="button"
               class="dd-ai__reset-btn"
               aria-label="Start a new conversation"
-              @click="confirmNewChat"
+              @click="openNewChatModal"
             >
               <DexIcon name="rotate-cw" aria-hidden="true" />
               New chat
             </button>
           </header>
+
+          <!-- Tab bar: shows the Current (live) tab plus any saved
+               draft tabs. Only renders when at least one draft exists
+               so the single-tab default is unchanged. -->
+          <nav
+            v-if="draftTabs.length > 0"
+            class="dd-ai__tabs"
+            role="tablist"
+            aria-label="Chat sessions"
+          >
+            <button
+              type="button"
+              role="tab"
+              class="dd-ai__tab"
+              :class="{ 'dd-ai__tab--active': activeTabId === 'live' }"
+              :aria-selected="activeTabId === 'live'"
+              @click="activeTabId = 'live'"
+            >
+              Current
+            </button>
+            <button
+              v-for="d in draftTabs"
+              :key="d.id"
+              type="button"
+              role="tab"
+              class="dd-ai__tab"
+              :class="{ 'dd-ai__tab--active': activeTabId === d.id }"
+              :aria-selected="activeTabId === d.id"
+              @click="activeTabId = d.id"
+            >
+              {{ d.label }}
+              <span
+                class="dd-ai__tab-close"
+                role="button"
+                tabindex="0"
+                aria-label="Discard this draft"
+                @click.stop="discardDraft(d.id)"
+                @keydown.enter.stop.prevent="discardDraft(d.id)"
+              >
+                ×
+              </span>
+            </button>
+          </nav>
+
+          <!-- Draft banner: when a draft tab is active, replace the
+               composer area with Apply / Discard controls at the top
+               so the user sees the primary actions right away. -->
+          <div
+            v-if="activeDraft"
+            class="dd-ai__draft-banner"
+            role="region"
+            :aria-label="`${activeDraft.label} controls`"
+          >
+            <div class="dd-ai__draft-banner-text">
+              <strong>{{ activeDraft.label }}</strong>
+              — read-only snapshot. Apply to override the current rules,
+              or discard to drop this draft.
+            </div>
+            <div class="dd-ai__draft-banner-actions">
+              <DexButton
+                variant="solid"
+                size="small"
+                @click="applyDraft(activeDraft.id)"
+              >
+                Apply draft
+              </DexButton>
+              <DexButton
+                variant="outline"
+                size="small"
+                @click="discardDraft(activeDraft.id)"
+              >
+                Discard
+              </DexButton>
+            </div>
+          </div>
 
           <div
             ref="transcriptEl"
@@ -91,7 +166,7 @@
             aria-label="Assistant conversation"
           >
             <!-- Welcome / empty state -->
-            <div v-if="transcript.length === 0" class="dd-ai__welcome">
+            <div v-if="visibleTranscript.length === 0" class="dd-ai__welcome">
               <DexText variant="heading-3" as="h4" class="dd-ai__welcome-title">
                 How can I help with your decision logic?
               </DexText>
@@ -131,7 +206,7 @@
             <!-- Conversation -->
             <template v-else>
               <div
-                v-for="(msg, idx) in transcript"
+                v-for="(msg, idx) in visibleTranscript"
                 :key="idx"
                 class="dd-ai__message"
                 :class="{
@@ -270,7 +345,7 @@
             </template>
           </div>
 
-          <div class="dd-ai__composer">
+          <div v-if="!isDraftActive" class="dd-ai__composer">
             <div class="dd-ai__input-row">
               <button
                 type="button"
@@ -416,9 +491,52 @@
         <!-- ===== Right: rule cards + footer ===== -->
         <main
           class="dd-rules"
-          :class="{ 'dd-rules--centered': !aiOpen }"
+          :class="{
+            'dd-rules--centered': !aiOpen,
+            'dd-rules--draft-view': isDraftActive,
+          }"
           aria-label="Sequence rules"
         >
+          <!-- Draft tab preview: when the active chat tab is a draft
+               snapshot, replace the editable rule cards with a
+               read-only summary of the snapshot's rules. Users apply
+               or discard from the left pane's draft banner. -->
+          <section
+            v-if="activeDraft"
+            class="dd-rules__draft-preview"
+            aria-label="Draft rules preview"
+          >
+            <header class="dd-rules__draft-header">
+              <DexText variant="heading-4" as="h3">
+                {{ activeDraft.label }} — rules snapshot
+              </DexText>
+              <DexText variant="body-2">
+                Read-only. Switch to <strong>Current</strong> in the chat
+                tabs to edit live rules, or Apply this draft to
+                override them.
+              </DexText>
+            </header>
+            <ol
+              v-if="activeDraft.config.groups.length > 0"
+              class="dd-rules__draft-list"
+            >
+              <li
+                v-for="(g, gi) in activeDraft.config.groups"
+                :key="g.id"
+                class="dd-rules__draft-item"
+              >
+                {{ summarizeGroup(g, gi) }}
+              </li>
+            </ol>
+            <DexText
+              v-else
+              variant="body-2"
+              class="dd-rules__draft-empty"
+            >
+              This draft has no rules yet.
+            </DexText>
+          </section>
+
           <template
             v-for="(group, gi) in config.groups"
             :key="group.id"
@@ -873,6 +991,67 @@
       :config="props.config"
       @close="testModalOpen = false"
     />
+
+    <!-- New-chat modal — appears when the user clicks the New chat
+         button. Lets them keep the current conversation as a Draft
+         tab (so the chat + rules snapshot survives for later apply),
+         just clear the current conversation, or cancel. -->
+    <div
+      v-if="newChatModalOpen"
+      class="dd-newchat-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="dd-newchat-title"
+      @click.self="newChatModalOpen = false"
+    >
+      <div class="dd-newchat">
+        <header class="dd-newchat__header">
+          <DexText
+            id="dd-newchat-title"
+            variant="heading-3"
+            as="h3"
+          >
+            Start a new chat
+          </DexText>
+          <button
+            type="button"
+            class="dd-newchat__close"
+            aria-label="Close"
+            @click="newChatModalOpen = false"
+          >
+            ×
+          </button>
+        </header>
+        <div class="dd-newchat__body">
+          <DexText variant="body-1">
+            Your current conversation and its rules will be lost unless
+            you keep them as a Draft tab. From a Draft tab you can
+            Apply the saved rules to override the current ones, or
+            discard them any time.
+          </DexText>
+        </div>
+        <footer class="dd-newchat__footer">
+          <DexButton
+            variant="outline"
+            @click="newChatModalOpen = false"
+          >
+            Cancel
+          </DexButton>
+          <DexButton
+            variant="outline"
+            @click="clearChatOnly"
+          >
+            Clear this chat
+          </DexButton>
+          <DexButton
+            variant="solid"
+            @click="saveAsDraftAndClear"
+          >
+            Save as draft tab
+          </DexButton>
+        </footer>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -900,6 +1079,7 @@ import type { EntityId } from '../../decisionDiamond/entities';
 import type {
   DDBlock,
   DDCondition,
+  DDGroup,
   DecisionDiamondConfig,
 } from '../../decisionDiamond/types';
 import { uid } from '../../decisionDiamond/types';
@@ -1233,6 +1413,118 @@ const transcript = ref<TranscriptItem[]>([]);
 /** Set while the editor itself is mutating config (e.g. applying a
  *  suggestion). Used to skip feedback for our own writes. */
 const isInternalMutation = ref(false);
+
+// ===================================================================
+// Draft tabs — a "New chat" session can be saved as a frozen snapshot
+// (transcript + rules at the time) that lives alongside the current
+// (live) tab. Draft tabs are read-only reviewable snapshots; users
+// can Apply one to overwrite the live rules with its rules, or
+// Discard it to drop it. The live tab is always index 0 and is the
+// only tab whose edits flow back into props.config.
+// ===================================================================
+
+interface DraftTabSnapshot {
+  id: string;
+  label: string;
+  createdAt: number;
+  transcript: TranscriptItem[];
+  config: DecisionDiamondConfig;
+}
+
+const draftTabs = ref<DraftTabSnapshot[]>([]);
+/** `'live'` or a DraftTabSnapshot id. Drives which tab's content is
+ *  showing in the left (chat) and right (rules) panes. */
+const activeTabId = ref<string>('live');
+const activeDraft = computed<DraftTabSnapshot | null>(() => {
+  if (activeTabId.value === 'live') return null;
+  return draftTabs.value.find((t) => t.id === activeTabId.value) ?? null;
+});
+const isDraftActive = computed(() => activeDraft.value !== null);
+/** Transcript shown in the chat pane — swapped to the draft's saved
+ *  copy when a draft tab is active, otherwise the live transcript ref.
+ *  Lets the whole chat UI iterate one source and automatically track
+ *  the tab the user is viewing. */
+const visibleTranscript = computed<TranscriptItem[]>(() =>
+  activeDraft.value ? activeDraft.value.transcript : transcript.value,
+);
+
+/** Open the New-chat modal — gives the user the choice to save the
+ *  current conversation as a draft tab before clearing, or just
+ *  destructively clear. See the modal template at the bottom of the
+ *  pane for the three options. */
+const newChatModalOpen = ref(false);
+
+function openNewChatModal() {
+  // No point prompting when the chat is already empty — just no-op.
+  if (transcript.value.length === 0) return;
+  newChatModalOpen.value = true;
+}
+
+/** Snapshot the current (live) transcript + rules into a new draft
+ *  tab, then clear the live transcript so the user can start fresh.
+ *  Rules on the right stay as-is because the live-tab rules are the
+ *  working surface; drafts are a separate historical copy. */
+function saveAsDraftAndClear() {
+  const id = `draft-${Date.now()}`;
+  const label = `Draft ${draftTabs.value.length + 1}`;
+  draftTabs.value = [
+    ...draftTabs.value,
+    {
+      id,
+      label,
+      createdAt: Date.now(),
+      transcript: transcript.value.map((t) => ({ ...t })) as TranscriptItem[],
+      // Deep clone so later edits to the live config don't mutate the
+      // snapshot. cloneConfig() reads from props.config.
+      config: cloneConfig(),
+    },
+  ];
+  transcript.value = [];
+  newChatModalOpen.value = false;
+  // Stay on the live tab — user wants to start fresh here. The draft
+  // is now reachable via the tab bar.
+}
+
+/** Destructive clear — the legacy "New chat" behavior. */
+function clearChatOnly() {
+  transcript.value = [];
+  newChatModalOpen.value = false;
+}
+
+/** Promote a draft's rules to the live config, overriding whatever is
+ *  there. The draft tab itself stays in the tab bar as a record. */
+function applyDraft(id: string) {
+  const d = draftTabs.value.find((t) => t.id === id);
+  if (!d) return;
+  isInternalMutation.value = true;
+  emit('update:config', JSON.parse(JSON.stringify(d.config)));
+  // Switch back to live so the user sees the applied result.
+  activeTabId.value = 'live';
+  window.setTimeout(() => {
+    isInternalMutation.value = false;
+  }, FEEDBACK_DEBOUNCE_MS + 50);
+}
+
+/** Remove a draft tab. If it was active, fall back to live. */
+function discardDraft(id: string) {
+  draftTabs.value = draftTabs.value.filter((t) => t.id !== id);
+  if (activeTabId.value === id) activeTabId.value = 'live';
+}
+
+/** One-line human-readable summary per sequence group in a draft's
+ *  snapshot config — rendered in the right pane when a draft tab is
+ *  active (instead of the editable rule cards). */
+function summarizeGroup(group: DDGroup, index: number): string {
+  if (!group.blocks.length) return `Sequence ${index + 1}: (no rules)`;
+  const blockSummaries = group.blocks.map((b) =>
+    b.conditions
+      .map((c) => describeCondition(c) || '…')
+      .filter((s) => s)
+      .join(' AND '),
+  );
+  const joined = blockSummaries.filter((s) => s).join(' OR ');
+  return `Sequence ${index + 1}: ${joined || '(empty)'}`;
+}
 
 // ===================================================================
 // Suggestion catalog — reasonable if/else flows for "Deal stage moved"
@@ -6986,5 +7278,195 @@ onBeforeUnmount(() => {
   color: var(--dex-fgColor-muted, #6b7280);
   padding: 2px 6px;
   border-radius: 4px;
+}
+
+/* ============================================================
+ * Draft-chat tabs + New-chat modal + right-pane draft preview
+ * ============================================================ */
+
+/* Tab bar above the chat transcript — only visible when at least
+ * one draft exists. */
+.dd-ai__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--dex-color-gray-300, #e4e7eb);
+  background: #fff;
+}
+.dd-ai__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dex-color-gray-1600, #4a4a4a);
+  background: var(--dex-color-gray-100, #f6f7f9);
+  border: 1px solid var(--dex-color-gray-300, #e4e7eb);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease,
+    border-color 0.12s ease;
+}
+.dd-ai__tab:hover {
+  background: var(--dex-color-gray-200, #ebeef2);
+}
+.dd-ai__tab--active {
+  background: #e6f0ff;
+  border-color: #006ceb;
+  color: #004ea8;
+}
+.dd-ai__tab-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+.dd-ai__tab-close:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Draft banner at the top of the chat pane when a draft tab is
+ * active — replaces the composer with Apply / Discard controls. */
+.dd-ai__draft-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  margin: 0 16px 10px;
+  background: #fff8e1;
+  border: 1px solid #f3d97a;
+  border-radius: 8px;
+  color: #0f1724;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.dd-ai__draft-banner-text {
+  flex: 1 1 220px;
+}
+.dd-ai__draft-banner-actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+/* Right-pane draft preview — hides the editable rule editor and
+ * shows a read-only summary of the draft's snapshot. */
+.dd-rules--draft-view > *:not(.dd-rules__draft-preview) {
+  display: none !important;
+}
+.dd-rules__draft-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+  margin: 24px;
+  background: #fff;
+  border: 1px solid var(--dex-color-gray-300, #e4e7eb);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 36, 0.04);
+}
+.dd-rules__draft-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.dd-rules__draft-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: #0f1724;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.dd-rules__draft-item {
+  padding: 10px 12px;
+  background: var(--dex-color-gray-100, #f6f7f9);
+  border-radius: 8px;
+}
+.dd-rules__draft-empty {
+  color: var(--dex-color-gray-1600, #4a4a4a);
+  font-style: italic;
+}
+
+/* New-chat modal — overlays the editor so the user can't miss the
+ * decision between save-as-draft / clear / cancel. */
+.dd-newchat-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 36, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+  animation: dd-newchat-fade 140ms ease-out 1;
+}
+.dd-newchat {
+  width: min(480px, calc(100% - 32px));
+  max-height: calc(100% - 48px);
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 24px 48px rgba(15, 23, 36, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dd-newchat__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px 10px;
+  border-bottom: 1px solid var(--dex-color-gray-300, #e4e7eb);
+}
+.dd-newchat__header > :first-child {
+  flex: 1;
+}
+.dd-newchat__close {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  color: #4a4a4a;
+}
+.dd-newchat__close:hover {
+  background: var(--dex-color-gray-200, #ebeef2);
+}
+.dd-newchat__body {
+  padding: 16px 20px;
+  color: #0f1724;
+  line-height: 1.5;
+}
+.dd-newchat__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 20px 20px;
+  border-top: 1px solid var(--dex-color-gray-300, #e4e7eb);
+}
+@keyframes dd-newchat-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dd-newchat-backdrop { animation: none; }
 }
 </style>
