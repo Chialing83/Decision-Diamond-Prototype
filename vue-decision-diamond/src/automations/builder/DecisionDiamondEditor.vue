@@ -3344,27 +3344,30 @@ interface SmartPillCandidate {
  *  add a new axis instead of duplicating existing ones. */
 function pickSmartConditionPills(seqIdx: number): SmartPillCandidate[] {
   const seq = props.config.groups[seqIdx];
-  // Dedup key tracks (entity, category, field, values) so a
-  // "Quote status equals Sent" rule in the sequence doesn't suppress
-  // an "equals Accepted" pill — different value picks on the same
-  // field stay independent suggestions. Including entity + category
-  // also lets Contact-scoped pills (e.g. "Contact's Tags contains
-  // VIP", where field is empty) be tracked for dedup correctly:
-  // without those we'd keep suggesting the same Contact Tag pill
-  // after the user already accepted it.
+  // Dedup key is (entity, category, field) — intentionally IGNORES
+  // values, so once ANY `quote.status` rule exists in the sequence
+  // we stop suggesting more `quote.status` pills regardless of which
+  // Sent/Viewed/Accepted value is in play. Entities with multiple
+  // fields (Pipeline: direction + stage, Appointment: event + type)
+  // still get pills for the untouched field. Contact-scoped pills
+  // key off entity+category so each Contact category (tags vs
+  // standard vs custom) is its own axis.
+  //
+  // This matches the user intent: "when the entity status is used
+  // already, focus on contacts; no more entity status unless the
+  // entity has other variants (= other fields)".
   const condKey = (c: {
     entity?: string;
     category?: string;
     field?: string;
-    values: string[];
   }) =>
-    `${c.entity ?? ''}::${c.category ?? ''}::${c.field ?? ''}::${JSON.stringify(c.values)}`;
+    `${c.entity ?? ''}::${c.category ?? ''}::${c.field ?? ''}`;
   const usedKeys = new Set<string>();
   seq?.blocks.forEach((b) =>
     b.conditions.forEach((c) => {
-      // Still skip truly empty rows (placeholder conditions with no
-      // field AND no category AND no entity) so they don't leak into
-      // the dedup set.
+      // Skip truly empty rows (placeholder conditions with no
+      // field AND no category AND no entity) so they don't leak
+      // into the dedup set.
       if (c.field || c.category || c.entity) usedKeys.add(condKey(c));
     }),
   );
@@ -3410,12 +3413,10 @@ function pickSmartConditionPills(seqIdx: number): SmartPillCandidate[] {
     ];
   }
 
-  // Exclude already-used combos so each pill is a distinct suggestion,
-  // but still allow multiple values on the same field (essential for
-  // triggers like Quote/Appointment that only expose one or two fields
-  // with multiple meaningful values each). The key mirrors the one
-  // built above so Contact-scoped pills dedup against Contact-scoped
-  // conditions, not trigger-scoped ones.
+  // Exclude pills whose (entity, category, field) axis is already in
+  // use somewhere in this sequence. Values are intentionally ignored
+  // so follow-ups focus on NEW axes (e.g. Contact Tags) instead of
+  // re-suggesting the same field with a different value.
   const remaining = pool.filter(
     (c) =>
       !usedKeys.has(
@@ -3423,7 +3424,6 @@ function pickSmartConditionPills(seqIdx: number): SmartPillCandidate[] {
           entity: c.contactScope ? 'contact' : undefined,
           category: c.contactScope?.category,
           field: c.field,
-          values: c.values,
         }),
       ),
   );
