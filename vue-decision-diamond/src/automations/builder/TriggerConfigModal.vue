@@ -305,7 +305,7 @@
 
       <footer class="tc-modal__footer">
         <DexButton variant="solid" :disabled="!canSave" @click="onSave">
-          Save
+          Apply
         </DexButton>
       </footer>
     </div>
