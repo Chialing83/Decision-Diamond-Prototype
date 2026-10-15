@@ -1767,16 +1767,45 @@ function onEditorSave() {
   const LABEL_WRAP_PX = 140; // typical canvas-label wrap target
   const LABEL_TOP_GAP = 8; // gap between icon bottom and label top
   const INTER_LABEL_PAD = 20; // gap between one label's bottom and next icon
+  const HORIZONTAL_LABEL_GAP = 24; // gap between upstream label edge and DD label edge
   const siblingLabels = cfg.groups.map((g, i) => summarizeGroupRules(g, i));
   const charsPerLine = Math.max(1, Math.floor(LABEL_WRAP_PX / APPROX_CHAR_PX));
+  const estLabelWidth = (title: string) =>
+    Math.min(LABEL_WRAP_PX, Math.max(80, (title || '').length * APPROX_CHAR_PX));
   const maxLabelHeight = siblingLabels.reduce((acc, text) => {
     const lines = Math.max(1, Math.ceil((text || '').length / charsPerLine));
     const h = LABEL_TOP_GAP + lines * LABEL_LINE_PX;
     return h > acc ? h : acc;
   }, 0);
+  const maxSiblingLabelWidth = siblingLabels.reduce(
+    (acc, text) => Math.max(acc, estLabelWidth(text)),
+    0,
+  );
   const verticalSpacing = DIAMOND_H + maxLabelHeight + INTER_LABEL_PAD;
   const stackHeight = (cfg.groups.length - 1) * verticalSpacing;
   const topY = original.y - stackHeight / 2;
+
+  // Horizontal: ensure the DD stack sits far enough right of each
+  // upstream source so the stack's labels (which extend LEFT of each
+  // diamond icon) don't collide with the upstream node's own label
+  // (which extends RIGHT of its icon). Falls back to original.x when
+  // all upstream labels are already comfortably clear.
+  let minStackX = original.x;
+  for (const srcId of incomingSources) {
+    const src = nodes.value.find((n) => n.id === srcId);
+    if (!src) continue;
+    const srcW = src.type === 'decision' ? DIAMOND_W : NODE_W;
+    const srcLabelW = estLabelWidth(src.title || '');
+    const required =
+      src.x +
+      srcW / 2 +
+      srcLabelW / 2 -
+      DIAMOND_W / 2 +
+      maxSiblingLabelWidth / 2 +
+      HORIZONTAL_LABEL_GAP;
+    if (required > minStackX) minStackX = required;
+  }
+  const stackX = Math.max(original.x, minStackX);
 
   // Fresh groupKey shared across this generation of siblings, so the
   // next re-save can clean them up the same way.
@@ -1794,7 +1823,7 @@ function onEditorSave() {
       id: newDiamondId,
       type: 'decision',
       title: summary,
-      x: original.x,
+      x: stackX,
       y: newY,
       groupKey: newGroupKey,
     });
