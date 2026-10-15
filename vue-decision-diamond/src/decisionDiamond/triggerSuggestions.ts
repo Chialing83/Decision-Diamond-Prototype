@@ -62,6 +62,15 @@ export interface TriggerSmartPill {
   operator: string;
   values: string[];
   label: string;
+  /** When set, this pill creates a CONTACT-scoped condition instead
+   *  of a trigger-scope condition. Lets a trigger (e.g. Quote status)
+   *  chain follow-up suggestions that cross into the shared Contact
+   *  entity — notably `Contact's Tags contains …` after a quote
+   *  lifecycle template is applied. Mirrors the shape the editor uses
+   *  on `DDCondition`: `entity: 'contact'`, `category: 'tags' | …`. */
+  contactScope?: {
+    category: 'tags' | 'standard' | 'constant' | 'custom';
+  };
 }
 
 // -------------------------------------------------------------------
@@ -371,6 +380,17 @@ const QUOTE_SMART_PILLS: TriggerSmartPill[] = [
     operator: 'equals',
     values: ['Sent'],
     label: 'Quote status equals Sent',
+  },
+  // Contact-scoped follow-up: once a Quote template is in place, the
+  // natural next narrow is "which contact is this quote attached to?"
+  // Surface a Tag check so the user can carve VIPs out of the quote
+  // branch without leaving the smart-pill flow.
+  {
+    field: '',
+    operator: 'contains',
+    values: ['VIP'],
+    label: "Contact's Tags contains VIP",
+    contactScope: { category: 'tags' },
   },
 ];
 

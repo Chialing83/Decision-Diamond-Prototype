@@ -3329,6 +3329,14 @@ interface SmartPillCandidate {
   operator: string;
   values: string[];
   label: string;
+  /** Mirrors TriggerSmartPill.contactScope — when set, applying this
+   *  pill produces a CONTACT-entity condition instead of a legacy
+   *  deal/trigger-scope condition. Required so Quote-status (and any
+   *  other trigger) can suggest Contact Tag follow-ups without a
+   *  bespoke code path. */
+  contactScope?: {
+    category: 'tags' | 'standard' | 'constant' | 'custom';
+  };
 }
 
 /** Ranked, executable, one-click condition pills for a target sequence.
@@ -3336,15 +3344,28 @@ interface SmartPillCandidate {
  *  add a new axis instead of duplicating existing ones. */
 function pickSmartConditionPills(seqIdx: number): SmartPillCandidate[] {
   const seq = props.config.groups[seqIdx];
-  // Dedup key tracks field+value pairs so a "Quote status equals Sent"
-  // rule in the sequence doesn't suppress an "equals Accepted" pill —
-  // different value picks on the same field stay independent
-  // suggestions. Legacy deal-field pool still benefits because each
-  // deal pill uses a different field anyway.
+  // Dedup key tracks (entity, category, field, values) so a
+  // "Quote status equals Sent" rule in the sequence doesn't suppress
+  // an "equals Accepted" pill — different value picks on the same
+  // field stay independent suggestions. Including entity + category
+  // also lets Contact-scoped pills (e.g. "Contact's Tags contains
+  // VIP", where field is empty) be tracked for dedup correctly:
+  // without those we'd keep suggesting the same Contact Tag pill
+  // after the user already accepted it.
+  const condKey = (c: {
+    entity?: string;
+    category?: string;
+    field?: string;
+    values: string[];
+  }) =>
+    `${c.entity ?? ''}::${c.category ?? ''}::${c.field ?? ''}::${JSON.stringify(c.values)}`;
   const usedKeys = new Set<string>();
   seq?.blocks.forEach((b) =>
     b.conditions.forEach((c) => {
-      if (c.field) usedKeys.add(`${c.field}::${JSON.stringify(c.values)}`);
+      // Still skip truly empty rows (placeholder conditions with no
+      // field AND no category AND no entity) so they don't leak into
+      // the dedup set.
+      if (c.field || c.category || c.entity) usedKeys.add(condKey(c));
     }),
   );
 
@@ -3358,6 +3379,7 @@ function pickSmartConditionPills(seqIdx: number): SmartPillCandidate[] {
       operator: p.operator,
       values: [...p.values],
       label: p.label,
+      contactScope: p.contactScope,
     }));
   } else {
     pool = [
@@ -3388,12 +3410,22 @@ function pickSmartConditionPills(seqIdx: number): SmartPillCandidate[] {
     ];
   }
 
-  // Exclude already-used (field, values) combos so each pill is a
-  // distinct suggestion, but still allow multiple values on the same
-  // field (essential for triggers like Quote/Appointment that only
-  // expose one or two fields with multiple meaningful values each).
+  // Exclude already-used combos so each pill is a distinct suggestion,
+  // but still allow multiple values on the same field (essential for
+  // triggers like Quote/Appointment that only expose one or two fields
+  // with multiple meaningful values each). The key mirrors the one
+  // built above so Contact-scoped pills dedup against Contact-scoped
+  // conditions, not trigger-scoped ones.
   const remaining = pool.filter(
-    (c) => !usedKeys.has(`${c.field}::${JSON.stringify(c.values)}`),
+    (c) =>
+      !usedKeys.has(
+        condKey({
+          entity: c.contactScope ? 'contact' : undefined,
+          category: c.contactScope?.category,
+          field: c.field,
+          values: c.values,
+        }),
+      ),
   );
   // Cap at 3 per the global pill rule.
   return remaining.slice(0, 3);
@@ -3445,14 +3477,29 @@ function doApplySmartPill(
   const next = cloneConfig();
   if (!next.groups[seqIdx]) return;
   const g = next.groups[seqIdx];
-  const newCond: DDCondition = {
-    id: uid('c'),
-    subject: '',
-    category: '',
-    field: cand.field,
-    operator: cand.operator,
-    values: [...cand.values],
-  };
+  // Contact-scoped pill → produce a Contact-entity condition that
+  // renders as "Contact's [Category] [Operator] [Value]". For Tags
+  // specifically there's no inner "field" (the category IS the axis),
+  // so field stays empty — matches the shape the editor already uses
+  // for hand-authored Contact's Tags rules.
+  const newCond: DDCondition = cand.contactScope
+    ? {
+        id: uid('c'),
+        entity: 'contact',
+        subject: '',
+        category: cand.contactScope.category,
+        field: cand.field || '',
+        operator: cand.operator,
+        values: [...cand.values],
+      }
+    : {
+        id: uid('c'),
+        subject: '',
+        category: '',
+        field: cand.field,
+        operator: cand.operator,
+        values: [...cand.values],
+      };
   if (joinAs === 'or' || g.blocks.length === 0) {
     g.blocks.push({ id: uid('b'), conditions: [newCond] });
   } else {
