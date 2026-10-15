@@ -582,6 +582,7 @@
 
     <DecisionDiamondEditor
       v-if="editorDiamondId"
+      :key="editorDiamondId"
       :config="currentConfig"
       :relevant-entities="currentRelevantEntities"
       :trigger-slug="currentTriggerSlug"
