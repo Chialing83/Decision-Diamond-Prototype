@@ -381,16 +381,34 @@ const QUOTE_SMART_PILLS: TriggerSmartPill[] = [
     values: ['Sent'],
     label: 'Quote status equals Sent',
   },
-  // Contact-scoped follow-up: once a Quote template is in place, the
-  // natural next narrow is "which contact is this quote attached to?"
-  // Surface a Tag check so the user can carve VIPs out of the quote
-  // branch without leaving the smart-pill flow.
+  // Contact-scoped follow-ups — once a Quote template is in place,
+  // the natural next narrow is "which contact is this quote attached
+  // to?" The field-level dedup upstream will hide all Quote-status
+  // pills as soon as one is used, so we need THREE Contact pills to
+  // keep the picker populated (cap is 3). We mix two Tag values
+  // (different values, same category key) with a Standard-field pill
+  // (different category key) so after one is picked the other axis
+  // still has something to offer.
   {
     field: '',
     operator: 'contains',
     values: ['VIP'],
     label: "Contact's Tags contains VIP",
     contactScope: { category: 'tags' },
+  },
+  {
+    field: '',
+    operator: 'contains',
+    values: ['Repeat buyer'],
+    label: "Contact's Tags contains Repeat buyer",
+    contactScope: { category: 'tags' },
+  },
+  {
+    field: 'contact.emailStatus',
+    operator: 'equals',
+    values: ['Confirmed'],
+    label: "Contact's Email Status equals Confirmed",
+    contactScope: { category: 'standard' },
   },
 ];
 
