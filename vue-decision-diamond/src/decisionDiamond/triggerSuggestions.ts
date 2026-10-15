@@ -301,14 +301,14 @@ const QUOTE_SUGGESTIONS: TriggerSuggestion[] = [
     ],
   },
   {
-    id: 'quoteAcceptedVsLost',
-    title: 'Accepted vs not accepted',
+    id: 'quoteAcceptedVsStillOpen',
+    title: 'Accepted vs still open',
     category: 'Quote status',
     description:
-      'Send accepted quotes straight to fulfillment; route everyone else into a recovery sequence.',
+      'Send accepted quotes straight to fulfillment; route still-open quotes (Sent or Viewed) into a recovery sequence.',
     message: {
-      title: 'Accepted vs not accepted',
-      lead: 'Cleanly separate the converted quotes from the ones that need more nurturing.',
+      title: 'Accepted vs still open',
+      lead: 'Cleanly separate the converted quotes from the ones that are still open and need more nurturing. Quote status only has three values — Sent, Viewed, Accepted — so "still open" means anything that is NOT Accepted yet.',
       whenTitle: 'When the quote status changes',
       whenBody:
         'Triggers each time a quote moves between Sent / Viewed / Accepted.',
@@ -319,9 +319,10 @@ const QUOTE_SUGGESTIONS: TriggerSuggestion[] = [
           suggestedNext: 'Invoice + welcome + scheduling.',
         },
         {
-          title: 'Not-yet-accepted branch',
-          decision: 'If Quote status equals Viewed → Sequence 2.',
-          suggestedNext: 'Reminder cadence with an offer escalation at day 7.',
+          title: 'Still-open branch (Sent or Viewed)',
+          decision: 'If Quote status does not equal Accepted → Sequence 2.',
+          suggestedNext:
+            'Reminder cadence with an offer escalation at day 7 — covers both Sent and Viewed quotes in one branch.',
         },
       ],
     },
@@ -333,10 +334,12 @@ const QUOTE_SUGGESTIONS: TriggerSuggestion[] = [
         values: ['Accepted'],
       },
       {
+        // `doesNotEqual Accepted` catches both Sent and Viewed, which
+        // are the only other valid Quote status values per the schema.
         sequenceIndex: 1,
         field: 'quote.status',
-        operator: 'equals',
-        values: ['Viewed'],
+        operator: 'doesNotEqual',
+        values: ['Accepted'],
       },
     ],
   },
