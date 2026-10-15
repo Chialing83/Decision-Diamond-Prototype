@@ -1762,16 +1762,26 @@ function onEditorSave() {
   // (DIAMOND_H + 32) didn't leave room when a label wrapped to two
   // lines (e.g. 'Quote status equals Accepted'), which produced the
   // visual overlap the user reported.
-  const APPROX_CHAR_PX = 7.5; // ~ Inter 14px/600 average glyph width
-  const LABEL_LINE_PX = 18; // line-height 1.3 * 14px
-  const LABEL_WRAP_PX = 140; // typical canvas-label wrap target
-  const LABEL_TOP_GAP = 8; // gap between icon bottom and label top
-  const INTER_LABEL_PAD = 20; // gap between one label's bottom and next icon
-  const HORIZONTAL_LABEL_GAP = 24; // gap between upstream label edge and DD label edge
+  // Canvas labels are rendered via .node__caption:
+  //   width: 373px, font-size: 26px, line-height: 1.2, top: 122px.
+  // That means the label's top sits 122px below the tile's top (so
+  // 32px below the 90px icon's bottom), each wrapped line adds
+  // ~32px, and the label box extends 186px to the LEFT and RIGHT of
+  // the icon center. Earlier constants were tuned for a 14px/140px
+  // label and under-shot the real geometry by nearly 2x, which is
+  // why the diamonds kept piling into each other.
+  const APPROX_CHAR_PX = 13; // ~ Inter 26px/600 average glyph width
+  const LABEL_LINE_PX = 32; // ceil(line-height 1.2 * 26px)
+  const LABEL_WRAP_PX = 373; // .node__caption width
+  const LABEL_TOP_GAP = 32; // 122 (caption.top) - 90 (icon height)
+  const INTER_LABEL_PAD = 32; // breathing room between label bottom and next icon
+  const HORIZONTAL_LABEL_GAP = 32; // gap between upstream text and DD text
   const siblingLabels = cfg.groups.map((g, i) => summarizeGroupRules(g, i));
   const charsPerLine = Math.max(1, Math.floor(LABEL_WRAP_PX / APPROX_CHAR_PX));
+  // Width = actual rendered text width, capped at the label container
+  // (373px). No artificial floor — short labels are short.
   const estLabelWidth = (title: string) =>
-    Math.min(LABEL_WRAP_PX, Math.max(80, (title || '').length * APPROX_CHAR_PX));
+    Math.min(LABEL_WRAP_PX, (title || '').length * APPROX_CHAR_PX);
   const maxLabelHeight = siblingLabels.reduce((acc, text) => {
     const lines = Math.max(1, Math.ceil((text || '').length / charsPerLine));
     const h = LABEL_TOP_GAP + lines * LABEL_LINE_PX;
