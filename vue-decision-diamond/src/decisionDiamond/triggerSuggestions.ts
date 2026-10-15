@@ -305,40 +305,48 @@ const QUOTE_SUGGESTIONS: TriggerSuggestion[] = [
     title: 'Accepted vs still open',
     category: 'Quote status',
     description:
-      'Send accepted quotes straight to fulfillment; route still-open quotes (Sent or Viewed) into a recovery sequence.',
+      'Still-open quotes (Sent or Viewed) go into a recovery sequence; accepted quotes go straight to fulfillment.',
     message: {
       title: 'Accepted vs still open',
-      lead: 'Cleanly separate the converted quotes from the ones that are still open and need more nurturing. Quote status only has three values — Sent, Viewed, Accepted — so "still open" means anything that is NOT Accepted yet.',
+      lead: 'Cleanly separate the converted quotes from the ones that are still open and need more nurturing. Quote status only has three values — Sent, Viewed, Accepted — so "still open" is spelled out as Sent OR Viewed in Sequence 1, with Accepted winning Sequence 2.',
       whenTitle: 'When the quote status changes',
       whenBody:
         'Triggers each time a quote moves between Sent / Viewed / Accepted.',
       thenSteps: [
         {
-          title: 'Accepted branch',
-          decision: 'If Quote status equals Accepted → Sequence 1.',
-          suggestedNext: 'Invoice + welcome + scheduling.',
+          title: 'Still-open branch (Sent or Viewed)',
+          decision:
+            'If Quote status equals Sent OR Quote status equals Viewed → Sequence 1.',
+          suggestedNext:
+            'Reminder cadence with an offer escalation at day 7 — covers both Sent and Viewed quotes.',
         },
         {
-          title: 'Still-open branch (Sent or Viewed)',
-          decision: 'If Quote status does not equal Accepted → Sequence 2.',
-          suggestedNext:
-            'Reminder cadence with an offer escalation at day 7 — covers both Sent and Viewed quotes in one branch.',
+          title: 'Accepted branch',
+          decision: 'If Quote status equals Accepted → Sequence 2.',
+          suggestedNext: 'Invoice + welcome + scheduling.',
         },
       ],
     },
     rules: [
+      // Sequence 1 — two rule blocks (OR'd) so both Sent and Viewed
+      // explicitly populate the editor as separate rows connected by Or.
       {
         sequenceIndex: 0,
         field: 'quote.status',
         operator: 'equals',
-        values: ['Accepted'],
+        values: ['Sent'],
       },
       {
-        // `doesNotEqual Accepted` catches both Sent and Viewed, which
-        // are the only other valid Quote status values per the schema.
+        sequenceIndex: 0,
+        field: 'quote.status',
+        operator: 'equals',
+        values: ['Viewed'],
+      },
+      // Sequence 2 — single rule block.
+      {
         sequenceIndex: 1,
         field: 'quote.status',
-        operator: 'doesNotEqual',
+        operator: 'equals',
         values: ['Accepted'],
       },
     ],

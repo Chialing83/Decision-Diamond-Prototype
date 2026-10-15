@@ -1668,41 +1668,53 @@ function applySuggestion(
       if (next.groups.length > requiredGroups) {
         next.groups = next.groups.slice(0, requiredGroups);
       }
+      // Group rules by their target sequenceIndex so a suggestion can
+      // emit MULTIPLE blocks per sequence (OR-connected). Within a
+      // single rule, `additional` still AND-connects extra conditions
+      // into the same block.
+      const rulesBySequence = new Map<number, typeof s.rules>();
       for (const r of s.rules) {
-        const group = next.groups[r.sequenceIndex];
+        const bucket = rulesBySequence.get(r.sequenceIndex) ?? [];
+        bucket.push(r);
+        rulesBySequence.set(r.sequenceIndex, bucket);
+      }
+      for (const [seqIdx, rules] of rulesBySequence.entries()) {
+        const group = next.groups[seqIdx];
         if (!group) continue;
-        const conditions = [
-          {
-            id: uid('c'),
-            subject: '',
-            category: '',
-            field: r.field,
-            operator: r.operator,
-            values: [...r.values],
-          },
-        ];
-        // Trigger-aware suggestions may carry extra AND-conditions in
-        // `additional` (e.g. `Direction equals Into AND Stage equals X`).
-        // Legacy SUGGESTIONS don't use this field — undefined is fine.
-        const extra = (r as { additional?: Array<{ field: string; operator: string; values: string[] }> }).additional;
-        if (extra && extra.length > 0) {
-          for (const a of extra) {
-            conditions.push({
+        group.blocks = rules.map((r) => {
+          const conditions = [
+            {
               id: uid('c'),
               subject: '',
               category: '',
-              field: a.field,
-              operator: a.operator,
-              values: [...a.values],
-            });
+              field: r.field,
+              operator: r.operator,
+              values: [...r.values],
+            },
+          ];
+          // Trigger-aware suggestions may carry extra AND-conditions in
+          // `additional` (e.g. `Direction equals Into AND Stage equals X`).
+          // Legacy SUGGESTIONS don't use this field — undefined is fine.
+          const extra = (r as {
+            additional?: Array<{ field: string; operator: string; values: string[] }>;
+          }).additional;
+          if (extra && extra.length > 0) {
+            for (const a of extra) {
+              conditions.push({
+                id: uid('c'),
+                subject: '',
+                category: '',
+                field: a.field,
+                operator: a.operator,
+                values: [...a.values],
+              });
+            }
           }
-        }
-        group.blocks = [
-          {
+          return {
             id: uid('b'),
             conditions,
-          },
-        ];
+          };
+        });
       }
       const validValues = new Set<string>([
         '__drop__',
