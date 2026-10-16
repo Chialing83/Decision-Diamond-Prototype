@@ -97,8 +97,8 @@
                 How can I help with your decision logic?
               </DexText>
               <DexText variant="body-1" class="dd-ai__welcome-sub">
-                Pick a starter or describe the rules that decide which
-                sequence to run.
+                Pick a starter below or describe the rules that route
+                to the next sequence.
               </DexText>
               <div
                 class="dd-ai__starters"
